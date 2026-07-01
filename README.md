@@ -1,0 +1,188 @@
+# Support Tool
+
+An open-source, self-hosted customer support ticketing system. Deploy it on your own infrastructure and handle customer support tickets without giving your data to a third party.
+
+Built with Next.js, PostgreSQL, Drizzle ORM, and Better Auth.
+
+---
+
+## Features
+
+- **Customer Portal** — Customers submit tickets with no account required. They receive a secure email link to view and reply to their tickets.
+- **Agent Portal** — Support agents view, assign, filter, and respond to all tickets. Internal notes are hidden from customers.
+- **Admin Portal** — Admins manage users, assign roles, and delete spam tickets.
+- **Email Notifications** — Customers are notified when their ticket is created, when an agent replies, and when it is closed.
+- **File Attachments** — JPG, PNG, PDF, ZIP, TXT up to 10 MB, max 5 per ticket.
+- **Dashboard** — Ticket stats for agents and admins (open, in-progress, closed, average wait time).
+- **Activity History** — Full audit trail per ticket (status changes, assignments, replies).
+- **Role-Based Access** — Customer, Agent, and Admin roles with strict permission enforcement.
+
+---
+
+## Tech Stack
+
+| Layer | Choice |
+|-------|--------|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript |
+| Database | PostgreSQL |
+| ORM | Drizzle ORM |
+| Auth | Better Auth (Magic Link + Google OAuth) |
+| Styling | Tailwind CSS v4 + shadcn/ui |
+| Email | Nodemailer (SMTP) |
+| Jobs | pg-boss |
+| File Storage | Local filesystem (dev) / S3-compatible (prod) |
+
+---
+
+## Quick Start
+
+> The fastest way to run a production instance is [Docker](#docker-self-hosted).
+> The steps below are for local development without Docker.
+
+### Prerequisites
+
+- Node.js 22+
+- pnpm 11+
+- PostgreSQL 16+ — or use the bundled embedded Postgres (`pnpm db:local`)
+
+### Setup
+
+```bash
+git clone https://github.com/your-org/support-tool
+cd support-tool
+pnpm install
+cp .env.example .env
+```
+
+Edit `.env` — set `APP_SECRET` (32+ characters) and `NEXT_PUBLIC_APP_URL`. SMTP is optional
+(without it, outgoing emails are logged to the worker console instead of delivered).
+
+```bash
+pnpm db:local                 # optional: start an embedded Postgres on :54329
+pnpm setup                    # run migrations + seed default statuses/categories
+pnpm create:admin you@example.com "Your Name"
+pnpm dev                      # runs Next.js + the background worker together
+```
+
+Open `http://localhost:3000`.
+
+> **Tip:** during development every outgoing email's links are printed to the worker
+> console, so you can click magic-link / ticket links without configuring SMTP.
+
+---
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `APP_SECRET` | Yes | Random secret for signing sessions (min 32 chars) |
+| `NEXT_PUBLIC_APP_URL` | Yes | Public URL of your deployment (e.g. `https://support.yourco.com`) |
+| `FIRST_ADMIN_EMAIL` | No | If set, `pnpm setup` creates this admin on first run |
+| `FIRST_ADMIN_NAME` | No | Display name for the first admin (default: `Admin`) |
+| `SMTP_HOST` | No | SMTP server hostname (omit to log emails instead of sending) |
+| `SMTP_PORT` | No | SMTP port (default: 587) |
+| `SMTP_USER` | No | SMTP username |
+| `SMTP_PASS` | No | SMTP password |
+| `EMAIL_FROM` | No | From address for outgoing email |
+| `GOOGLE_CLIENT_ID` | No | Google OAuth client ID — enables "Continue with Google" |
+| `GOOGLE_CLIENT_SECRET` | No | Google OAuth client secret |
+| `EMAIL_WEBHOOK_SECRET` | No | Shared secret for SMTP provider delivery webhooks |
+| `NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID` | No | Pusher Beams instance id — enables browser/OS push for agents (baked in at build time) |
+| `PUSHER_BEAMS_SECRET_KEY` | No | Pusher Beams secret key (server only) |
+
+> **Agent notifications:** customer replies notify agents **in-app** via the notification
+> bell (no config needed). Configure the two `*_PUSHER_BEAMS_*` vars to also send OS-level
+> push that works when the app is closed. See [docs/in-app-notifications.md](docs/in-app-notifications.md).
+
+---
+
+## Docker (Self-Hosted)
+
+The included `docker-compose.yml` runs the full stack: PostgreSQL, the Next.js app,
+and the pg-boss background worker.
+
+```bash
+cp .env.example .env
+# Set APP_SECRET (32+ chars) and NEXT_PUBLIC_APP_URL.
+# Optionally set FIRST_ADMIN_EMAIL to auto-create your admin user.
+docker compose up -d
+```
+
+On startup a one-shot `migrate` service runs database migrations and seeds the default
+statuses & categories (and creates the first admin if `FIRST_ADMIN_EMAIL` is set) before
+the app and worker start. The app is served on **http://localhost:3000**.
+
+`DATABASE_URL` is wired automatically to the bundled Postgres — you don't need to set it
+in `.env` for Docker. Uploaded attachments persist in the `uploads` volume.
+
+```bash
+docker compose logs -f app worker     # follow logs
+docker compose down                   # stop (data persists in volumes)
+```
+
+To create an admin after the fact:
+
+```bash
+docker compose run --rm app pnpm create:admin you@example.com "Your Name"
+```
+
+**Enabling Pusher Beams (OS push) with Docker:** the instance id is baked into the
+client bundle at build time, so pass it as a build arg, then set the secret at runtime:
+
+```bash
+docker compose build --build-arg NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID=your-instance-id
+# put PUSHER_BEAMS_SECRET_KEY in .env, then:
+docker compose up -d
+```
+
+---
+
+## Deployment
+
+### Railway / Render / Fly.io
+
+1. Fork this repo.
+2. Create a new project pointing at your fork.
+3. Set all required environment variables.
+4. Add a PostgreSQL add-on.
+5. Deploy.
+
+### VPS (manual)
+
+1. Install Node.js 22, PostgreSQL 16, and pnpm.
+2. Clone the repo, `pnpm install`, and set up `.env`.
+3. Build and initialise:
+   ```bash
+   pnpm build
+   pnpm setup            # migrations + seed (+ first admin if FIRST_ADMIN_EMAIL set)
+   ```
+4. Run **two** long-lived processes (e.g. with systemd, PM2, or `screen`):
+   ```bash
+   pnpm start            # Next.js app on :3000
+   pnpm worker:start     # pg-boss background worker (emails, jobs)
+   ```
+5. Put Nginx (or Caddy) in front for TLS and proxy to `:3000`.
+
+---
+
+## Roles
+
+| Role | How to get it |
+|------|---------------|
+| Customer | No account needed — submits tickets via the public portal |
+| Agent | Admin assigns it via the admin panel |
+| Admin | Via `pnpm make:admin email@...` or promoted in admin panel |
+
+---
+
+## Contributing
+
+Contributions are welcome. Please open an issue before submitting a large PR.
+
+---
+
+## License
+
+MIT

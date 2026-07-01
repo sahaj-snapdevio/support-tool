@@ -1,0 +1,80 @@
+"use client";
+
+import { usePathname } from "next/navigation";
+import {
+  SquaresFourIcon,
+  TicketIcon,
+  UsersIcon,
+  PaintBrushIcon,
+  TagIcon,
+  type Icon,
+} from "@phosphor-icons/react";
+import { NotificationBell } from "./notification-bell";
+
+interface RouteMeta {
+  title: string;
+  description?: string;
+  icon?: Icon;
+}
+
+const ROUTE_META: Record<string, RouteMeta> = {
+  "/dashboard": {
+    title: "Dashboard",
+    description: "Ticket volume and team activity at a glance.",
+    icon: SquaresFourIcon,
+  },
+  "/tickets": {
+    title: "All Tickets",
+    description: "Search and manage all support tickets.",
+    icon: TicketIcon,
+  },
+  "/admin/users": {
+    title: "Users",
+    description: "Manage agents and admins.",
+    icon: UsersIcon,
+  },
+  "/admin/appearance": {
+    title: "Appearance",
+    description: "Set the color theme and appearance mode for all agents and admins.",
+    icon: PaintBrushIcon,
+  },
+  "/admin/ticket-config": {
+    title: "Ticket Configuration",
+    description: "Manage ticket statuses and categories available to agents and customers.",
+    icon: TagIcon,
+  },
+};
+
+function getMeta(pathname: string): RouteMeta {
+  if (ROUTE_META[pathname]) return ROUTE_META[pathname];
+  if (pathname.startsWith("/tickets/")) {
+    return {
+      title: "Ticket Detail",
+      description: "View and respond to this ticket.",
+      icon: TicketIcon,
+    };
+  }
+  return { title: "" };
+}
+
+export function TopBar() {
+  const pathname = usePathname();
+  const { title, description, icon: Icon } = getMeta(pathname);
+
+  return (
+    <div className="h-14 shrink-0 border-b border-border bg-card flex items-center justify-between px-6">
+      <div className="flex items-center gap-3 min-w-0">
+        {Icon && <Icon className="size-5 text-foreground shrink-0" />}
+        <div className="min-w-0">
+          <h1 className="text-sm font-semibold text-foreground leading-tight truncate">
+            {title}
+          </h1>
+          {description && (
+            <p className="text-xs text-muted-foreground leading-tight truncate">{description}</p>
+          )}
+        </div>
+      </div>
+      <NotificationBell />
+    </div>
+  );
+}

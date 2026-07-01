@@ -1,0 +1,255 @@
+import { Suspense } from "react";
+import { count, ilike, or } from "drizzle-orm";
+import Link from "next/link";
+import { db } from "@/lib/db";
+import { user } from "@/db/schema";
+import { requireAdmin } from "@/lib/authz";
+import { ADMIN_ROLE } from "@/config/platform";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { UserSearch } from "./_components/user-search";
+import { UserActions } from "./_components/user-actions";
+import { InviteUserDialog } from "./_components/invite-user-dialog";
+import { UsersIcon, CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react/dist/ssr";
+
+type SearchParams = { q?: string; page?: string };
+
+interface Props {
+  searchParams: Promise<SearchParams>;
+}
+
+const PAGE_SIZE = 25;
+
+export default async function AdminUsersPage({ searchParams }: Props) {
+  const session = await requireAdmin();
+  const params = await searchParams;
+
+  return (
+    <div className="p-4 lg:p-6 max-w-5xl mx-auto">
+      {/* Header actions */}
+      <div className="flex items-center justify-end gap-2 mb-6 flex-wrap">
+        <UserSearch />
+        <InviteUserDialog />
+      </div>
+
+      {/* Re-suspends on search/pagination change (key = params) → skeleton shows. */}
+      <Suspense key={JSON.stringify(params)} fallback={<UsersTableSkeleton />}>
+        <UsersResults params={params} currentUserId={session.id} />
+      </Suspense>
+    </div>
+  );
+}
+
+async function UsersResults({
+  params,
+  currentUserId,
+}: {
+  params: SearchParams;
+  currentUserId: string;
+}) {
+  const search = (params.q ?? "").trim();
+  const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
+
+  const where = search
+    ? or(ilike(user.name, `%${search}%`), ilike(user.email, `%${search}%`))
+    : undefined;
+
+  const [users, [{ total }]] = await Promise.all([
+    db
+      .select({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        banned: user.banned,
+        banReason: user.banReason,
+        createdAt: user.createdAt,
+      })
+      .from(user)
+      .where(where)
+      .orderBy(user.createdAt)
+      .limit(PAGE_SIZE)
+      .offset((page - 1) * PAGE_SIZE),
+    db.select({ total: count() }).from(user).where(where),
+  ]);
+
+  const pageCount = Math.ceil(total / PAGE_SIZE);
+
+  function buildPageUrl(p: number) {
+    const qp = new URLSearchParams();
+    if (search) qp.set("q", search);
+    if (p > 1) qp.set("page", String(p));
+    const qs = qp.toString();
+    return `/admin/users${qs ? `?${qs}` : ""}`;
+  }
+
+  return (
+    <>
+      <p className="text-xs text-muted-foreground mb-3">
+        {total} registered user{total !== 1 ? "s" : ""}
+      </p>
+
+      {/* Table */}
+      <div className="bg-card rounded-xl border border-border shadow-soft overflow-hidden">
+        {users.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <UsersIcon className="size-8 text-muted-foreground mb-3" />
+            <p className="text-sm font-medium text-foreground">No users found</p>
+            {search && (
+              <p className="text-xs text-muted-foreground mt-1">Try a different search term</p>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-accent/50">
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    User
+                  </th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Role
+                  </th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Status
+                  </th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Joined
+                  </th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/50">
+                {users.map((u) => (
+                  <tr key={u.id} className="hover:bg-accent/30 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="size-8 rounded-full bg-primary/10 border border-border flex items-center justify-center text-xs font-semibold text-foreground shrink-0">
+                          {(u.name ?? u.email).slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {u.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                          {u.banReason && (
+                            <p className="text-xs text-red-500 truncate mt-0.5">
+                              Ban reason: {u.banReason}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-medium ${
+                          u.role === ADMIN_ROLE
+                            ? "bg-primary/10 border-primary/20 text-foreground"
+                            : "bg-muted/20 border-border text-muted-foreground"
+                        }`}
+                      >
+                        {u.role === ADMIN_ROLE ? "Admin" : "Agent"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-medium ${
+                          u.banned
+                            ? "bg-red-50 border-red-200 text-red-600"
+                            : "bg-green-50 border-green-200 text-green-700"
+                        }`}
+                      >
+                        {u.banned ? "Banned" : "Active"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                      {u.createdAt.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </td>
+                    <td className="px-4 py-3">
+                      <UserActions
+                        userId={u.id}
+                        userName={u.name}
+                        userEmail={u.email}
+                        userRole={u.role}
+                        userBanned={u.banned}
+                        isCurrentUser={u.id === currentUserId}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Pagination */}
+      {pageCount > 1 && (
+        <div className="flex items-center justify-between mt-4 text-xs text-muted-foreground">
+          <span>
+            Page {page} of {pageCount} · {total} users
+          </span>
+          <div className="flex gap-2">
+            {page > 1 && (
+              <Link href={buildPageUrl(page - 1)}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 gap-1 border-border text-foreground hover:bg-accent"
+                >
+                  <CaretLeftIcon className="size-3" />
+                  Previous
+                </Button>
+              </Link>
+            )}
+            {page < pageCount && (
+              <Link href={buildPageUrl(page + 1)}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 gap-1 border-border text-foreground hover:bg-accent"
+                >
+                  Next
+                  <CaretRightIcon className="size-3" />
+                </Button>
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function UsersTableSkeleton() {
+  return (
+    <>
+      <Skeleton className="h-3 w-32 mb-3" />
+      <div className="bg-card rounded-xl border border-border shadow-soft overflow-hidden">
+        <div className="border-b border-border bg-accent/50 px-4 py-3">
+          <Skeleton className="h-3 w-16" />
+        </div>
+        <div className="divide-y divide-border/50">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4 px-4 py-3.5">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <Skeleton className="size-8 rounded-full shrink-0" />
+                <div className="space-y-1.5 min-w-0">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-44" />
+                </div>
+              </div>
+              <Skeleton className="h-5 w-14 rounded-md shrink-0" />
+              <Skeleton className="h-5 w-16 rounded-md shrink-0 hidden sm:block" />
+              <Skeleton className="h-3 w-20 shrink-0 hidden md:block" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}

@@ -1,0 +1,197 @@
+import { createId } from "@paralleldrive/cuid2";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
+import { tickets, ticketAttachments, ticketActivity } from "@/db/schema";
+import { storage } from "@/lib/storage";
+import { enqueueEmail } from "@/lib/email";
+import { ticketCreatedTemplate } from "@/lib/email/templates/ticket-created";
+import { env } from "@/lib/env";
+import { getTicketCategories, getDefaultStatus } from "@/lib/ticket-config";
+
+const ALLOWED_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "application/pdf",
+  "application/zip",
+  "text/plain",
+]);
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_FILES = 5;
+
+// POST /api/tickets — public (customer ticket submission)
+export async function POST(request: NextRequest) {
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  }
+
+  const name = String(formData.get("name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const subject = String(formData.get("subject") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const category = String(formData.get("category") ?? "").trim();
+  const attachmentFiles = formData.getAll("attachments").filter(
+    (v): v is File => v instanceof File && v.size > 0
+  );
+
+  // Validation
+  if (!name || name.length < 2 || name.length > 100) {
+    return NextResponse.json({ error: "Name must be 2–100 characters." }, { status: 400 });
+  }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return NextResponse.json({ error: "Invalid email address." }, { status: 400 });
+  }
+  if (!subject || subject.length < 5 || subject.length > 200) {
+    return NextResponse.json({ error: "Subject must be 5–200 characters." }, { status: 400 });
+  }
+  if (!description || description.length < 10 || description.length > 5000) {
+    return NextResponse.json({ error: "Description must be 10–5000 characters." }, { status: 400 });
+  }
+  const [validCategories, defaultStatus] = await Promise.all([
+    getTicketCategories(),
+    getDefaultStatus(),
+  ]);
+  if (!validCategories.some((c) => c.slug === category)) {
+    return NextResponse.json({ error: "Invalid category." }, { status: 400 });
+  }
+  if (attachmentFiles.length > MAX_FILES) {
+    return NextResponse.json({ error: `Maximum ${MAX_FILES} files allowed.` }, { status: 400 });
+  }
+  for (const file of attachmentFiles) {
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: `File "${file.name}" exceeds the 10 MB limit.` },
+        { status: 400 }
+      );
+    }
+    if (!ALLOWED_MIME_TYPES.has(file.type)) {
+      return NextResponse.json(
+        { error: `File type "${file.type}" is not allowed.` },
+        { status: 400 }
+      );
+    }
+  }
+
+  const ticketId = createId();
+  const customerToken = createId();
+  const now = new Date();
+
+  // Upload attachments first (so we can roll back cleanly if DB fails)
+  const uploadedAttachments: Array<{
+    id: string;
+    filename: string;
+    storageKey: string;
+    fileSize: number;
+    mimeType: string;
+  }> = [];
+
+  for (const file of attachmentFiles) {
+    const ext = file.name.split(".").pop() ?? "bin";
+    const storageKey = `tickets/${ticketId}/${createId()}.${ext}`;
+    const buffer = Buffer.from(await file.arrayBuffer());
+    await storage.upload(storageKey, buffer, file.type);
+    uploadedAttachments.push({
+      id: createId(),
+      filename: file.name,
+      storageKey,
+      fileSize: file.size,
+      mimeType: file.type,
+    });
+  }
+
+  try {
+    const [inserted] = await db
+      .insert(tickets)
+      .values({
+        id: ticketId,
+        subject,
+        description,
+        category,
+        status: defaultStatus?.slug ?? "open",
+        customerName: name,
+        customerEmail: email,
+        customerToken,
+        // A brand-new ticket is awaiting the team's first reply.
+        awaitingReply: true,
+        pendingReplies: 1,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning({ ticketNumber: tickets.ticketNumber });
+
+    // Insert attachments
+    if (uploadedAttachments.length > 0) {
+      await db.insert(ticketAttachments).values(
+        uploadedAttachments.map((a) => ({
+          id: a.id,
+          ticketId,
+          filename: a.filename,
+          storageKey: a.storageKey,
+          fileSize: a.fileSize,
+          mimeType: a.mimeType,
+          uploadedByName: name,
+          uploadedByRole: "customer",
+          createdAt: now,
+        }))
+      );
+    }
+
+    // Log activity
+    await db.insert(ticketActivity).values({
+      id: createId(),
+      ticketId,
+      actorName: name,
+      actorRole: "customer",
+      action: "ticket_created",
+      createdAt: now,
+    });
+
+    // Enqueue ticket.created email (non-blocking)
+    const ticketUrl = `${env.NEXT_PUBLIC_APP_URL}/ticket/${ticketId}?token=${customerToken}`;
+    const myTicketsUrl = `${env.NEXT_PUBLIC_APP_URL}/my-tickets`;
+    ticketCreatedTemplate({
+      customerName: name,
+      ticketNumber: inserted.ticketNumber,
+      ticketSubject: subject,
+      ticketUrl,
+      myTicketsUrl,
+    })
+      .then(({ html, text }) =>
+        enqueueEmail({
+          to: email,
+          subject: `[#${inserted.ticketNumber}] Your ticket has been received — ${subject}`,
+          html,
+          text,
+        })
+      )
+      .catch((err) => console.error("[ticket.created email]", err));
+
+    return NextResponse.json({ ticketNumber: inserted.ticketNumber }, { status: 201 });
+  } catch (err) {
+    // Clean up uploaded files on DB failure
+    for (const a of uploadedAttachments) {
+      await storage.delete(a.storageKey).catch(() => undefined);
+    }
+    console.error("[POST /api/tickets]", err);
+    return NextResponse.json({ error: "Failed to create ticket." }, { status: 500 });
+  }
+}
+
+// GET /api/tickets — agent/admin only
+export async function GET(request: NextRequest) {
+  const session = await auth.api.getSession({ headers: request.headers });
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+  const role = session.user.role;
+  if (role !== "agent" && role !== "admin") {
+    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  }
+
+  // TODO: paginated ticket list with filters
+  return NextResponse.json({ tickets: [] });
+}

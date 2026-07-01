@@ -1,0 +1,348 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #88BDF2 transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #88BDF2;
+  border-radius: 9999px;
+}
+
+html {
+  height: 100%;
+  background: var(--background);
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: var(--font-sans);
+
+  --text-2xs: 0.625rem;
+  --tracking-eyebrow: 0.16em;
+  --tracking-ui: 0.1em;
+
+  /* ── Brand palette — runtime-overridable via ThemeProvider ── */
+  --color-cream: var(--brand-cream);
+  --color-sand:  var(--brand-sand);
+  --color-stone: var(--brand-stone);
+  --color-bark:  var(--brand-bark);
+
+  /* Page */
+  --color-page: var(--page);
+
+  /* Content surface (area behind cards, inside the app shell) */
+  --color-surface: var(--surface);
+
+  /* Soft elevation for bordered cards/tables (dark-mode aware) */
+  --shadow-soft: var(--shadow-card);
+
+  /* Semantic status */
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-subtle: var(--success-subtle);
+  --color-success-light: var(--success-light);
+  --color-warning: var(--warning);
+
+  /* Shadcn core */
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+
+  /* ── Proportional radius (matches Teamority) ── */
+  --radius-sm:  calc(var(--radius) * 0.6);
+  --radius-md:  calc(var(--radius) * 0.8);
+  --radius-lg:  var(--radius);
+  --radius-xl:  calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  /* ── Brand palette defaults (overridden by ThemeProvider) ── */
+  --brand-cream: #BDDDFC;
+  --brand-sand:  #88BDF2;
+  --brand-stone: #6A89A7;
+  --brand-bark:  #384959;
+
+  /* ── Page background ──────────────────────── */
+  --page: #BDDDFC;   /* cream / lightest blue */
+
+  /* Content surface behind cards inside the app shell */
+  --surface: #F7F9FB;
+
+  /* Soft card/table elevation — visible lift paired with the 1px border */
+  --shadow-card: 0 4px 12px -4px rgba(56, 73, 89, 0.12),
+    0 2px 4px -2px rgba(56, 73, 89, 0.07);
+
+  /* ── Status colours ───────────────────────── */
+  --success: oklch(0.45 0.13 145);
+  --success-foreground: oklch(0.25 0.09 145);
+  --success-subtle: oklch(0.97 0.04 145);
+  --success-light: oklch(0.78 0.13 145);
+  --warning: oklch(0.58 0.15 65);
+
+  /* ── Shadcn core — mapped to brand palette ── */
+  --background: #ffffff;
+  --foreground: #384959;            /* bark  */
+  --card: #ffffff;
+  --card-foreground: #384959;       /* bark  */
+  --popover: #ffffff;
+  --popover-foreground: #384959;    /* bark  */
+  --primary: #384959;               /* bark  */
+  --primary-foreground: #ffffff;
+  --secondary: #BDDDFC;             /* cream */
+  --secondary-foreground: #384959;  /* bark  */
+  --muted: #BDDDFC;                 /* cream */
+  --muted-foreground: #6A89A7;      /* stone */
+  --accent: #BDDDFC;                /* cream */
+  --accent-foreground: #384959;     /* bark  */
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: #88BDF2;                /* sand  */
+  --input: #88BDF2;                 /* sand  */
+  --ring: #384959;                  /* bark  */
+  --chart-1: #384959;
+  --chart-2: #6A89A7;
+  --chart-3: #88BDF2;
+  --chart-4: #BDDDFC;
+  --chart-5: oklch(0.87 0 0);
+  --radius: 0.5rem;
+
+  /* ── Sidebar — bark (deep navy) ────────── */
+  --sidebar: #384959;               /* bark  */
+  --sidebar-foreground: #BDDDFC;    /* cream */
+  --sidebar-primary: #BDDDFC;       /* cream */
+  --sidebar-primary-foreground: #384959;  /* bark  */
+  --sidebar-accent: rgba(189, 221, 252, 0.12);
+  --sidebar-accent-foreground: #BDDDFC;   /* cream */
+  --sidebar-border: rgba(136, 189, 242, 0.2);
+  --sidebar-ring: #88BDF2;          /* sand  */
+}
+
+.dark {
+  /* ── 3-layer surface system ──────────────────
+     sidebar (darkest) < surface/background < card (elevated).
+     Blue-gray, not pure black — matches the brand's cool cast. */
+  --page:       #12151a;
+  --surface:    #161a20;   /* content area behind cards */
+  --shadow-card: 0 4px 14px -4px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --background: #161a20;
+  --card:       #1e2229;   /* elevated cards, popovers */
+  --popover:    #1e2229;
+  --sidebar:    #0d0f12;   /* app frame / sidebar */
+
+  /* ── Text ──────────────────────────────────── */
+  --foreground:         #f0f2f5;
+  --card-foreground:    #f0f2f5;
+  --popover-foreground: #f0f2f5;
+  --muted-foreground:   #8b919e;
+
+  /* ── Brand accent — kept in dark (not grayscale) ── */
+  --primary:            #88bdf2;   /* sand */
+  --primary-foreground: #0d0f12;
+  --secondary:          #232830;
+  --secondary-foreground: #f0f2f5;
+  --muted:              #1e2229;
+  --accent:             #222c3a;   /* subtle brand-tinted surface (was `bg-cream`) */
+  --accent-foreground:  #e8f1fb;
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: #272b33;
+  --input:  #2a2f38;
+  --ring:   #88bdf2;
+
+  /* ── Status ────────────────────────────────── */
+  --success: oklch(0.65 0.13 145);
+  --success-foreground: oklch(0.9 0.06 145);
+  --success-subtle: oklch(0.22 0.06 145);
+  --success-light: oklch(0.78 0.13 145);
+  --warning: oklch(0.72 0.15 65);
+
+  /* ── Charts — brand + status hues ──────────── */
+  --chart-1: #88bdf2;
+  --chart-2: #6a89a7;
+  --chart-3: #bdddfc;
+  --chart-4: #4ade80;
+  --chart-5: #fcd34d;
+
+  /* ── Sidebar ───────────────────────────────── */
+  --sidebar-foreground:        #8b919e;
+  --sidebar-primary:           #88bdf2;
+  --sidebar-primary-foreground:#0d0f12;
+  --sidebar-accent:            rgba(255, 255, 255, 0.07);
+  --sidebar-accent-foreground: #f0f2f5;
+  --sidebar-border:            rgba(255, 255, 255, 0.07);
+  --sidebar-ring:              #88bdf2;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+  button,
+  input {
+    font: inherit;
+  }
+}
+
+@layer components {
+  /* Public-facing page background — soft, refined wash derived from the
+     brand colour. Lighter and more elegant than a flat `bg-cream`. */
+  .bg-public {
+    background-color: color-mix(in srgb, var(--brand-cream) 26%, white);
+    background-image: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--brand-cream) 52%, white) 0%,
+      color-mix(in srgb, var(--brand-cream) 16%, white) 52%,
+      color-mix(in srgb, var(--brand-cream) 28%, white) 100%
+    );
+  }
+
+  /* Rich-text (Tiptap) reply content — editor canvas + read-only rendering.
+     Kept minimal and brand-aligned since replies only use inline marks + lists. */
+  .tiptap-content {
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--foreground);
+    word-break: break-word;
+  }
+  .tiptap-content p {
+    margin: 0 0 0.5rem;
+  }
+  .tiptap-content h1,
+  .tiptap-content h2,
+  .tiptap-content h3 {
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--foreground);
+    margin: 0.75rem 0 0.375rem;
+  }
+  .tiptap-content h1 {
+    font-size: 1.35rem;
+  }
+  .tiptap-content h2 {
+    font-size: 1.15rem;
+  }
+  .tiptap-content h3 {
+    font-size: 1rem;
+  }
+  .tiptap-content > :first-child {
+    margin-top: 0;
+  }
+  .tiptap-content > :last-child {
+    margin-bottom: 0;
+  }
+  .tiptap-content strong {
+    font-weight: 600;
+  }
+  .tiptap-content a {
+    color: var(--primary);
+    text-decoration: underline;
+  }
+  .tiptap-content ul,
+  .tiptap-content ol {
+    margin: 0 0 0.5rem;
+    padding-left: 1.25rem;
+  }
+  .tiptap-content ul {
+    list-style: disc;
+  }
+  .tiptap-content ol {
+    list-style: decimal;
+  }
+  .tiptap-content li {
+    margin: 0.125rem 0;
+  }
+  .tiptap-content li > p {
+    margin: 0;
+  }
+  .tiptap-content code {
+    background-color: var(--muted);
+    border-radius: 0.25rem;
+    padding: 0.1rem 0.3rem;
+    font-size: 0.85em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .tiptap-content pre {
+    background-color: var(--secondary);
+    color: var(--foreground);
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    overflow-x: auto;
+    margin: 0 0 0.5rem;
+  }
+  .tiptap-content pre code {
+    background: none;
+    color: inherit;
+    padding: 0;
+    font-size: 0.85em;
+  }
+  .tiptap-content blockquote {
+    border-left: 3px solid var(--border);
+    padding-left: 0.75rem;
+    color: var(--muted-foreground);
+    margin: 0 0 0.5rem;
+  }
+  /* Placeholder shown on the empty editor (from @tiptap/extension-placeholder). */
+  .tiptap-content p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+    color: var(--muted-foreground);
+  }
+}

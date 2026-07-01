@@ -1,0 +1,120 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { EnvelopeSimpleIcon, CheckCircleIcon, TicketIcon } from "@phosphor-icons/react";
+import { PRODUCT_NAME } from "@/config/platform";
+
+export default function MyTicketsPage() {
+  const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      await fetch("/api/tickets/mine/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      // Always show the same message to prevent email enumeration
+      setDone(true);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-public">
+      <header className="bg-white/80 backdrop-blur-sm border-b border-sand sticky top-0 z-10">
+        <div className="max-w-3xl mx-auto px-6 h-14 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5">
+            <div className="size-7 rounded-md bg-bark flex items-center justify-center">
+              <TicketIcon className="size-4 text-cream" weight="fill" />
+            </div>
+            <span className="font-semibold text-bark text-sm">{PRODUCT_NAME}</span>
+          </Link>
+          <Link href="/submit" className="text-sm text-stone hover:text-bark transition-colors">
+            Submit a Ticket
+          </Link>
+        </div>
+      </header>
+
+      <main className="max-w-md mx-auto px-4 py-20">
+        {done ? (
+          <div className="text-center">
+            <CheckCircleIcon className="size-12 text-emerald-500 mx-auto mb-4" />
+            <h1 className="text-xl font-semibold text-bark mb-2">Check your inbox</h1>
+            <p className="text-sm text-stone leading-relaxed">
+              If any tickets exist for{" "}
+              <span className="font-medium text-bark">{email}</span>, we've
+              sent you a list with links to each one.
+            </p>
+            <div className="mt-6 flex flex-col gap-3">
+              <Button
+                variant="outline"
+                className="border-sand text-bark hover:bg-cream w-full"
+                onClick={() => { setDone(false); setEmail(""); }}
+              >
+                Try another email
+              </Button>
+              <Button asChild className="bg-bark hover:bg-bark/90 text-white w-full">
+                <Link href="/submit">Submit a New Ticket</Link>
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="mb-8 text-center">
+              <EnvelopeSimpleIcon className="size-10 text-stone mx-auto mb-3" />
+              <h1 className="text-2xl font-semibold text-bark">Find My Tickets</h1>
+              <p className="text-sm text-stone mt-2 leading-relaxed">
+                Enter the email address you used when submitting a ticket. We'll
+                send you links to all your open tickets.
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-sand shadow-soft p-6 space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-bark text-sm font-medium">
+                  Email Address
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="jane@example.com"
+                  className=""
+                  disabled={submitting}
+                />
+                {error && <p className="text-xs text-red-600">{error}</p>}
+              </div>
+
+              <Button
+                type="submit"
+                disabled={submitting}
+                className="w-full bg-bark hover:bg-bark/90 text-white"
+              >
+                {submitting ? "Sending…" : "Send My Tickets"}
+              </Button>
+            </form>
+          </>
+        )}
+      </main>
+    </div>
+  );
+}
