@@ -59,23 +59,38 @@ This is not a traditional "login" — it is simply a convenience email listing t
 
 ## 2. Agent & Admin Login (Better Auth)
 
-Agents and admins authenticate via Better Auth with two supported methods:
+Agents and admins authenticate via Better Auth with three supported methods:
 
 | Method | Description |
 |--------|-------------|
-| Magic Link | Agent enters email → receives a one-time sign-in link → clicks it → session created |
-| Google OAuth | Agent clicks "Sign in with Google" → OAuth flow → session created (if Google is configured) |
+| Email & Password | Agent enters email + password → session created immediately. Works with **zero external dependencies** — no SMTP, no OAuth provider — which is why it's the recommended bootstrap path for a fresh self-hosted install. |
+| Magic Link | Agent enters email → receives a one-time sign-in link → clicks it → session created. Requires SMTP to be configured (`lib/email`). |
+| Google OAuth | Agent clicks "Sign in with Google" → OAuth flow → session created. Requires `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` to be set. |
 
-Google OAuth is optional — it is only available when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set in the environment.
+There is **no public self-registration** for any method — a user account only ever comes into existence via `pnpm create:admin` (script), an admin promoting an existing magic-link/Google sign-up (`pnpm make:admin` or the admin panel), or a future admin-panel "invite" action. Password accounts are never created by an open sign-up form.
+
+### Sign-In Method Toggles
+
+An admin can enable/disable each method at runtime from **`/admin/appearance`** (stored in `platform_settings`: `passwordLoginEnabled`, `magicLinkEnabled`, `googleLoginEnabled` — all default `true`). This is enforced **server-side**, not just hidden in the UI: `lib/auth.ts` registers a `hooks.before` middleware that rejects `/sign-in/email`, `/sign-in/magic-link`, and `/sign-in/social` requests when the corresponding toggle is off, so a disabled method can't be used by calling the API directly. The settings UI (and the API route backing it) refuses to let all three be disabled at once — at least one method must always remain reachable.
+
+Google's toggle only controls whether the *configured* provider is offered — turning it on without `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` set does nothing (the switch is disabled in the UI in that case).
 
 ### Sign-In Flow
 
 1. Agent/admin visits `/login`.
-2. Chooses magic link (enter email) or Google OAuth.
-3. **Magic link:** Always shows: `"If this email is valid, a sign-in link has been sent."` regardless of whether the email exists (prevents account enumeration).
-4. **Google OAuth:** Redirects to Google → returns to the app → session created.
-5. On success: redirected to `/dashboard`.
-6. On failure (invalid/expired magic link): `"This link has expired or has already been used. Request a new one."` with a link back to `/login`.
+2. Chooses a method from whichever are currently enabled: password, magic link, or Google OAuth. When both password and magic link are enabled, a small link lets them switch between the two.
+3. **Password:** Submits email + password → session created immediately, redirected to `/post-auth`.
+4. **Magic link:** Always shows: `"If this email is valid, a sign-in link has been sent."` regardless of whether the email exists (prevents account enumeration).
+5. **Google OAuth:** Redirects to Google → returns to the app → session created.
+6. On success: redirected to `/dashboard` (via `/post-auth`).
+7. On failure: password shows `"Invalid email or password."`; an expired/invalid magic link shows `"This link has expired or has already been used. Request a new one."` with a link back to `/login`.
+
+### Password Rules
+
+- Minimum **8 characters** (`emailAndPassword.minPasswordLength` in `lib/auth.ts`).
+- Hashed and stored by Better Auth in the `account` table (`provider_id = 'credential'`) — the app never handles raw password hashing itself.
+- `requireEmailVerification` is off — self-hosted installs may not have SMTP configured, so password sign-in must not depend on receiving an email.
+- No self-service password reset flow yet — an admin resets a locked-out user by re-running `pnpm create:admin` for a new account or via a future admin-panel action. (Not yet built — see Out of Scope.)
 
 ### Magic Link Rules
 
@@ -103,7 +118,7 @@ Roles are stored in `user.role`:
 
 There is no `customer` role — customers are not users in the system. They are identified only by the email stored on each ticket.
 
-New users who sign in via magic link or Google for the first time are created with no role by default and cannot access the agent portal until an admin assigns the `agent` or `admin` role.
+New users who sign in via magic link or Google for the first time are auto-created with no meaningful role (`user`, the DB column default) and cannot access the agent portal until an admin assigns the `agent` or `admin` role. Password accounts don't go through this path at all — they're only ever created via `pnpm create:admin` (or a future admin-panel invite), which sets the role directly at creation time, so there's no "unassigned password user" state to worry about.
 
 ---
 
@@ -174,7 +189,7 @@ user
 +-- name              text
 +-- email_verified    boolean default false
 +-- image             text (avatar storage key, nullable)
-+-- role              text  ← 'agent' | 'admin' | null (unassigned)
++-- role              text  ← 'agent' | 'admin' | 'user' (DB default — no portal access)
 +-- banned            boolean default false
 +-- ban_reason        text nullable
 +-- ban_expires       timestamp nullable
@@ -194,8 +209,9 @@ session
 account
 +-- id                text PK
 +-- user_id           text → user.id (cascade delete)
-+-- provider_id       text  ← 'google' | 'magic-link'
++-- provider_id       text  ← 'google' | 'magic-link' | 'credential' (password)
 +-- account_id        text
++-- password           text nullable ← hashed password, only set for provider_id = 'credential'
 +-- created_at / updated_at
 
 verification
@@ -204,6 +220,13 @@ verification
 +-- value             text  ← hashed magic link token
 +-- expires_at        timestamp (15 min from creation)
 +-- created_at
+
+platform_settings (db/schema/settings.ts — not a Better Auth table)
++-- id                        text PK, always 'default' (single row)
++-- password_login_enabled    boolean default true
++-- magic_link_enabled        boolean default true
++-- google_login_enabled      boolean default true
++-- ...theme / appearance_mode (unrelated to auth, see docs/design-system.md)
 ```
 
 ---
@@ -220,12 +243,16 @@ verification
 | CSRF | Better Auth handles CSRF on all POST routes |
 | Token reuse | Magic links are single-use |
 | Banned users | Sessions revoked immediately on ban |
+| Disabled sign-in methods bypassed via direct API call | `lib/auth.ts`'s `hooks.before` middleware rejects `/sign-in/email`, `/sign-in/magic-link`, `/sign-in/social` server-side when the matching `platform_settings` toggle is off — not just a hidden UI button |
+| Password brute-forcing | Better Auth's built-in rate limiting (on by default in production); 8-character minimum |
+| Locking out all sign-in | The settings API and UI both refuse to disable the last remaining enabled method |
 
 ---
 
 ## Out of Scope (MVP)
 
-- Password-based authentication
+- Self-service password reset (admin-driven reset/re-creation only, for now)
+- Public self-registration for any method (accounts are always script- or admin-created)
 - Customer accounts with passwords
 - 2FA / TOTP
 - SSO / SAML

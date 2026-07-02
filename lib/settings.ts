@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
 import { platformSettings } from "@/db/schema/settings";
+import { db } from "@/lib/db";
 
 export async function getPlatformSettings() {
   const [row] = await db
@@ -8,5 +8,13 @@ export async function getPlatformSettings() {
     .from(platformSettings)
     .where(eq(platformSettings.id, "default"))
     .limit(1);
-  return row ?? { theme: "default", appearanceMode: "auto" as const };
+  return (
+    row ?? {
+      theme: "default",
+      appearanceMode: "auto" as const,
+      passwordLoginEnabled: true,
+      magicLinkEnabled: true,
+      googleLoginEnabled: true,
+    }
+  );
 }

@@ -17,7 +17,7 @@ export default function AppearanceLoading() {
           <Skeleton className="h-4 w-24" />
           <div className="grid grid-cols-3 gap-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 rounded-xl" />
+              <Skeleton className="h-16 rounded-xl" key={i} />
             ))}
           </div>
         </div>
@@ -27,7 +27,7 @@ export default function AppearanceLoading() {
           <Skeleton className="h-4 w-24" />
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 rounded-xl" />
+              <Skeleton className="h-20 rounded-xl" key={i} />
             ))}
           </div>
         </div>
@@ -36,6 +36,28 @@ export default function AppearanceLoading() {
         <div className="flex justify-end gap-2 border-t border-border pt-4">
           <Skeleton className="h-8 w-20 rounded-md" />
           <Skeleton className="h-8 w-28 rounded-md" />
+        </div>
+      </div>
+
+      {/* Sign-in methods */}
+      <div className="bg-card rounded-xl border border-border shadow-soft p-6 space-y-4 mt-6">
+        <div className="space-y-1">
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-3 w-72" />
+        </div>
+        <div className="divide-y divide-border rounded-lg border border-border">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              className="flex items-center justify-between gap-4 p-4"
+              key={i}
+            >
+              <div className="space-y-1.5">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3 w-56" />
+              </div>
+              <Skeleton className="h-5 w-9 rounded-full shrink-0" />
+            </div>
+          ))}
         </div>
       </div>
     </div>

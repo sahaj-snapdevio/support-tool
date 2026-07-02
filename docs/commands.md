@@ -6,15 +6,26 @@
 pnpm install
 cp .env.example .env
 pnpm db:local        # start local embedded postgres (dev only)
-pnpm db:migrate      # apply all pending migrations
+pnpm setup           # validate env, migrate, seed defaults, create first admin
 pnpm dev             # start Next.js + worker concurrently
 ```
 
 Open `http://localhost:3000`.
 
-Promote an account to admin after signing in:
+`pnpm setup` is the guided one-shot bootstrap — it runs `db:migrate` + `db:seed`,
+then creates the first admin if `FIRST_ADMIN_EMAIL` (and optionally
+`FIRST_ADMIN_NAME` / `FIRST_ADMIN_PASSWORD`) is set in `.env`. Safe to re-run.
+
+If you'd rather do it manually, or need to create/promote an account later:
 
 ```bash
+# Create a brand-new admin with a password — signs in immediately, no SMTP needed
+pnpm create:admin you@example.com "Your Name" "a-strong-password"
+
+# Create a magic-link-only admin (no password — requires SMTP to sign in)
+pnpm create:admin you@example.com "Your Name"
+
+# Promote an account that already signed in via magic link / Google
 pnpm make:admin you@example.com
 ```
 
@@ -40,6 +51,7 @@ pnpm format          # biome format
 pnpm db:local        # start embedded postgres for local dev
 pnpm db:generate     # generate migration from schema changes
 pnpm db:migrate      # apply pending migrations
+pnpm db:seed         # seed default ticket statuses & categories (idempotent)
 pnpm db:push         # push schema directly (dev only — skips migration file)
 pnpm db:reset        # drop all tables + re-migrate (destroys all data)
 ```

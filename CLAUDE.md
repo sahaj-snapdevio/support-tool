@@ -16,7 +16,7 @@ Full feature specs live in `docs/`. Read the relevant doc before implementing an
 | Language | TypeScript |
 | Database | PostgreSQL |
 | ORM | Drizzle ORM |
-| Auth | Better Auth (Admin Plugin + Magic Link + Google OAuth) |
+| Auth | Better Auth (Admin Plugin + Email/Password + Magic Link + Google OAuth) |
 | Styling | Tailwind CSS v4 |
 | UI Components | shadcn/ui |
 | Icons | Phosphor Icons (`@phosphor-icons/react`) |
@@ -68,7 +68,7 @@ scripts/
 
 There are two completely separate auth flows in this app:
 
-1. **Agents and Admins** — full Better Auth session (magic link + Google OAuth if configured). Access `/login`. Role stored in `user.role`.
+1. **Agents and Admins** — full Better Auth session via email/password, magic link, or Google OAuth (if configured). Each method is admin-toggleable at runtime (`/admin/appearance`, `platform_settings` table) and enforced server-side in `lib/auth.ts`'s `hooks.before`. Access `/login`. Role stored in `user.role`.
 2. **Customers** — no account required. They submit a ticket with name + email. Access their tickets via a secure link emailed to them. No session, no password.
 
 Never redirect customers to the agent login page and vice versa.

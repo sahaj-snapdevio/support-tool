@@ -1,8 +1,8 @@
 "use client";
 
 import { GoogleLogoIcon } from "@phosphor-icons/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -11,41 +11,55 @@ import { authClient } from "@/lib/auth-client";
 
 interface AuthFormProps {
   googleEnabled: boolean;
+  magicLinkEnabled: boolean;
+  passwordLoginEnabled: boolean;
 }
 
-export function AuthForm({ googleEnabled }: AuthFormProps) {
+export function AuthForm(props: AuthFormProps) {
   return (
     <Suspense fallback={null}>
-      <AuthFormInner googleEnabled={googleEnabled} />
+      <AuthFormInner {...props} />
     </Suspense>
   );
 }
 
-function AuthFormInner({ googleEnabled }: AuthFormProps) {
+function AuthFormInner({
+  googleEnabled,
+  magicLinkEnabled,
+  passwordLoginEnabled,
+}: AuthFormProps) {
+  const router = useRouter();
   const searchParams = useSearchParams();
 
+  const bothEmailModesAvailable = magicLinkEnabled && passwordLoginEnabled;
+  const [mode, setMode] = useState<"magic-link" | "password">(
+    passwordLoginEnabled ? "password" : "magic-link"
+  );
+
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
+  const callbackURL = searchParams.get("next") ?? "/post-auth";
+
   async function handleGoogleSignIn() {
     setError(null);
     setGoogleLoading(true);
     try {
-      await authClient.signIn.social({ provider: "google", callbackURL: "/post-auth" });
+      await authClient.signIn.social({ provider: "google", callbackURL });
     } catch {
       setError("Failed to sign in with Google. Please try again.");
       setGoogleLoading(false);
     }
   }
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function onSubmitMagicLink(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
-    const callbackURL = searchParams.get("next") ?? "/post-auth";
     const result = await authClient.signIn.magicLink({ email, callbackURL });
     setSubmitting(false);
     if (result.error) {
@@ -55,10 +69,28 @@ function AuthFormInner({ googleEnabled }: AuthFormProps) {
     setSent(true);
   }
 
+  async function onSubmitPassword(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    const result = await authClient.signIn.email({
+      email,
+      password,
+      callbackURL,
+    });
+    setSubmitting(false);
+    if (result.error) {
+      setError(result.error.message ?? "Invalid email or password.");
+      return;
+    }
+    router.push(callbackURL);
+  }
+
+  const noEmailBasedMethod = !(magicLinkEnabled || passwordLoginEnabled);
+
   return (
     <main className="min-h-screen bg-public flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
-
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center size-12 rounded-xl bg-bark text-cream font-bold text-lg mb-4">
@@ -73,12 +105,24 @@ function AuthFormInner({ googleEnabled }: AuthFormProps) {
           {sent ? (
             <div className="text-center space-y-4">
               <div className="inline-flex items-center justify-center size-12 rounded-full bg-bark/10 mb-2">
-                <svg className="size-6 text-bark" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                <svg
+                  className="size-6 text-bark"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-bark">Check your inbox</h2>
+                <h2 className="text-lg font-semibold text-bark">
+                  Check your inbox
+                </h2>
                 <p className="text-sm text-stone mt-1">
                   We sent a sign-in link to{" "}
                   <span className="font-medium text-bark">{email}</span>
@@ -87,9 +131,9 @@ function AuthFormInner({ googleEnabled }: AuthFormProps) {
               <p className="text-xs text-stone">
                 Didn&apos;t receive it?{" "}
                 <button
-                  type="button"
-                  onClick={() => setSent(false)}
                   className="underline underline-offset-4 hover:text-bark transition-colors"
+                  onClick={() => setSent(false)}
+                  type="button"
                 >
                   Try again
                 </button>
@@ -100,19 +144,21 @@ function AuthFormInner({ googleEnabled }: AuthFormProps) {
               <div>
                 <h2 className="text-xl font-semibold text-bark">Sign in</h2>
                 <p className="text-sm text-stone mt-1">
-                  No password needed — we&apos;ll email you a secure link.
+                  {mode === "password"
+                    ? "Enter your email and password."
+                    : "No password needed — we'll email you a secure link."}
                 </p>
               </div>
 
-              {/* Google button — only when configured */}
+              {/* Google button — only when configured and enabled */}
               {googleEnabled && (
                 <>
                   <Button
-                    type="button"
-                    variant="outline"
                     className="w-full gap-2 border-sand text-bark hover:bg-cream"
                     disabled={submitting || googleLoading}
                     onClick={handleGoogleSignIn}
+                    type="button"
+                    variant="outline"
                   >
                     {googleLoading ? (
                       <span className="size-4 rounded-full border-2 border-bark/30 border-t-bark animate-spin inline-block" />
@@ -122,56 +168,151 @@ function AuthFormInner({ googleEnabled }: AuthFormProps) {
                     Continue with Google
                   </Button>
 
-                  <div className="flex items-center gap-3">
-                    <Separator className="flex-1 bg-sand" />
-                    <span className="text-xs text-stone">or</span>
-                    <Separator className="flex-1 bg-sand" />
-                  </div>
+                  {!noEmailBasedMethod && (
+                    <div className="flex items-center gap-3">
+                      <Separator className="flex-1 bg-sand" />
+                      <span className="text-xs text-stone">or</span>
+                      <Separator className="flex-1 bg-sand" />
+                    </div>
+                  )}
                 </>
               )}
 
-              {/* Magic link form */}
-              <form onSubmit={onSubmit} className="space-y-4">
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="block text-sm font-medium text-bark mb-1.5"
-                  >
-                    Email address
-                  </label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    autoComplete="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="text-foreground"
-                  />
-                </div>
-
-                {error && (
-                  <p className="text-sm text-red-600 bg-red-50 rounded-md px-3 py-2">
-                    {error}
+              {noEmailBasedMethod ? (
+                !googleEnabled && (
+                  <p className="text-sm text-stone text-center">
+                    No sign-in methods are enabled. Contact your administrator.
                   </p>
-                )}
+                )
+              ) : mode === "password" ? (
+                <form className="space-y-4" onSubmit={onSubmitPassword}>
+                  <div>
+                    <label
+                      className="block text-sm font-medium text-bark mb-1.5"
+                      htmlFor="email"
+                    >
+                      Email address
+                    </label>
+                    <Input
+                      autoComplete="email"
+                      className="text-foreground"
+                      id="email"
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      required
+                      type="email"
+                      value={email}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      className="block text-sm font-medium text-bark mb-1.5"
+                      htmlFor="password"
+                    >
+                      Password
+                    </label>
+                    <Input
+                      autoComplete="current-password"
+                      className="text-foreground"
+                      id="password"
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      type="password"
+                      value={password}
+                    />
+                  </div>
 
-                <Button
-                  type="submit"
-                  className="w-full bg-bark hover:bg-bark/90 text-white"
-                  disabled={submitting || googleLoading}
-                >
-                  {submitting ? (
-                    <span className="flex items-center gap-2">
-                      <span className="size-4 rounded-full border-2 border-white/30 border-t-white animate-spin inline-block" />
-                      Sending link…
-                    </span>
-                  ) : (
-                    "Send Sign-In Link"
+                  {error && (
+                    <p className="text-sm text-red-600 bg-red-50 rounded-md px-3 py-2">
+                      {error}
+                    </p>
                   )}
-                </Button>
-              </form>
+
+                  <Button
+                    className="w-full bg-bark hover:bg-bark/90 text-white"
+                    disabled={submitting || googleLoading}
+                    type="submit"
+                  >
+                    {submitting ? (
+                      <span className="flex items-center gap-2">
+                        <span className="size-4 rounded-full border-2 border-white/30 border-t-white animate-spin inline-block" />
+                        Signing in…
+                      </span>
+                    ) : (
+                      "Sign In"
+                    )}
+                  </Button>
+
+                  {bothEmailModesAvailable && (
+                    <button
+                      className="w-full text-center text-xs text-stone underline underline-offset-4 hover:text-bark transition-colors"
+                      onClick={() => {
+                        setError(null);
+                        setMode("magic-link");
+                      }}
+                      type="button"
+                    >
+                      Use a magic link instead
+                    </button>
+                  )}
+                </form>
+              ) : (
+                <form className="space-y-4" onSubmit={onSubmitMagicLink}>
+                  <div>
+                    <label
+                      className="block text-sm font-medium text-bark mb-1.5"
+                      htmlFor="email"
+                    >
+                      Email address
+                    </label>
+                    <Input
+                      autoComplete="email"
+                      className="text-foreground"
+                      id="email"
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      required
+                      type="email"
+                      value={email}
+                    />
+                  </div>
+
+                  {error && (
+                    <p className="text-sm text-red-600 bg-red-50 rounded-md px-3 py-2">
+                      {error}
+                    </p>
+                  )}
+
+                  <Button
+                    className="w-full bg-bark hover:bg-bark/90 text-white"
+                    disabled={submitting || googleLoading}
+                    type="submit"
+                  >
+                    {submitting ? (
+                      <span className="flex items-center gap-2">
+                        <span className="size-4 rounded-full border-2 border-white/30 border-t-white animate-spin inline-block" />
+                        Sending link…
+                      </span>
+                    ) : (
+                      "Send Sign-In Link"
+                    )}
+                  </Button>
+
+                  {bothEmailModesAvailable && (
+                    <button
+                      className="w-full text-center text-xs text-stone underline underline-offset-4 hover:text-bark transition-colors"
+                      onClick={() => {
+                        setError(null);
+                        setMode("password");
+                      }}
+                      type="button"
+                    >
+                      Use a password instead
+                    </button>
+                  )}
+                </form>
+              )}
             </div>
           )}
         </div>
@@ -179,8 +320,8 @@ function AuthFormInner({ googleEnabled }: AuthFormProps) {
         <p className="text-center text-xs text-stone mt-6">
           Looking to submit a support ticket?{" "}
           <a
-            href="/"
             className="underline underline-offset-4 hover:text-bark transition-colors"
+            href="/"
           >
             Go to customer portal
           </a>

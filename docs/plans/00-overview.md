@@ -26,6 +26,9 @@ Below is the decision made per item and where its plan lives.
 | 9 | Audit-log / activity viewer | **Build** | [07-audit-log-viewer.md](./07-audit-log-viewer.md) |
 | 10 | CSAT + CSV export | **Deferred** — revisit later, no plan yet | — |
 | 11 | `/api/health` endpoint | **Deferred** — revisit later, no plan yet | — |
+| 12 | Email/password login + per-method sign-in toggles | **Built** — see `docs/authentication.md` § 2 | — |
+| 13 | Password reset (self-service + admin-initiated) | **Deferred** — gap found while building #12 | [08-password-reset.md](./08-password-reset.md) |
+| 14 | Open-source readiness (LICENSE, `package.json` metadata, CI, templates) | **Deferred** — prioritized functionality first | [09-open-source-readiness.md](./09-open-source-readiness.md) |
 
 ### A note on #1 — "already implemented"?
 

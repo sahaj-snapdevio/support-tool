@@ -27,7 +27,7 @@ Built with Next.js, PostgreSQL, Drizzle ORM, and Better Auth.
 | Language | TypeScript |
 | Database | PostgreSQL |
 | ORM | Drizzle ORM |
-| Auth | Better Auth (Magic Link + Google OAuth) |
+| Auth | Better Auth (Email & Password + Magic Link + Google OAuth) |
 | Styling | Tailwind CSS v4 + shadcn/ui |
 | Email | Nodemailer (SMTP) |
 | Jobs | pg-boss |
@@ -58,12 +58,21 @@ cp .env.example .env
 Edit `.env` — set `APP_SECRET` (32+ characters) and `NEXT_PUBLIC_APP_URL`. SMTP is optional
 (without it, outgoing emails are logged to the worker console instead of delivered).
 
+`DATABASE_URL` is also required, but `.env.example`'s default already points at
+`localhost:54329` — matching the embedded Postgres `pnpm db:local` starts below — so leave
+it as-is if you're using that. Only change it if you're pointing at your own PostgreSQL
+instance instead.
+
 ```bash
 pnpm db:local                 # optional: start an embedded Postgres on :54329
 pnpm setup                    # run migrations + seed default statuses/categories
-pnpm create:admin you@example.com "Your Name"
+pnpm create:admin you@example.com "Your Name" "a-strong-password"
 pnpm dev                      # runs Next.js + the background worker together
 ```
+
+The password lets you sign in immediately with no SMTP configured. Omit it
+to create a magic-link-only admin instead (see the tip below for how that
+still works in dev without SMTP).
 
 Open `http://localhost:3000`.
 
@@ -81,6 +90,7 @@ Open `http://localhost:3000`.
 | `NEXT_PUBLIC_APP_URL` | Yes | Public URL of your deployment (e.g. `https://support.yourco.com`) |
 | `FIRST_ADMIN_EMAIL` | No | If set, `pnpm setup` creates this admin on first run |
 | `FIRST_ADMIN_NAME` | No | Display name for the first admin (default: `Admin`) |
+| `FIRST_ADMIN_PASSWORD` | No | Password for the first admin — lets them sign in immediately with no SMTP configured. Omit for a magic-link-only admin. |
 | `SMTP_HOST` | No | SMTP server hostname (omit to log emails instead of sending) |
 | `SMTP_PORT` | No | SMTP port (default: 587) |
 | `SMTP_USER` | No | SMTP username |
@@ -125,7 +135,7 @@ docker compose down                   # stop (data persists in volumes)
 To create an admin after the fact:
 
 ```bash
-docker compose run --rm app pnpm create:admin you@example.com "Your Name"
+docker compose run --rm app pnpm create:admin you@example.com "Your Name" "a-strong-password"
 ```
 
 **Enabling Pusher Beams (OS push) with Docker:** the instance id is baked into the
