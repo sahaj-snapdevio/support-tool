@@ -202,7 +202,7 @@ export function TicketsTable({
       {/* Table */}
       <div className="bg-card rounded-xl border border-border shadow-soft overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
             <thead>
               <tr className="border-b border-border bg-accent/50">
                 {isAdmin && (

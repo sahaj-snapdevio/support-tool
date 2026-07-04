@@ -15,13 +15,18 @@ function hashKey(raw: string): string {
  * only `hash` is persisted (lib/api-keys.ts never stores the raw secret).
  * Built from cuid2 (a CSPRNG-backed generator) rather than
  * crypto.randomUUID()/Math.random(), matching this project's ID convention.
+ *
+ * Prefix is `stk_live_` (Support Tool Key), deliberately not `sk_live_` —
+ * that's Stripe's own secret-key format, and reusing it makes every
+ * placeholder example in these docs trip GitHub's push-protection secret
+ * scanner as a false-positive "Stripe API key" match.
  */
 export function generateApiKey(): {
   raw: string;
   prefix: string;
   hash: string;
 } {
-  const raw = `sk_live_${createId()}${createId()}`;
+  const raw = `stk_live_${createId()}${createId()}`;
   return { raw, prefix: raw.slice(0, 16), hash: hashKey(raw) };
 }
 

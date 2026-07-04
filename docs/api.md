@@ -17,7 +17,7 @@ you lose it, revoke it and create a new one.
 Send it as a bearer token on every request:
 
 ```
-Authorization: Bearer sk_live_xxxxxxxxxxxxxxxxxxxxxxxx
+Authorization: Bearer stk_live_xxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 A missing, invalid, or revoked key gets a `401`.
@@ -44,7 +44,7 @@ pre-sorted in display order (the same order agents see in the app).
 
 ```bash
 curl https://support.example.com/api/v1/config \
-  -H "Authorization: Bearer sk_live_xxxxxxxxxxxxxxxxxxxxxxxx"
+  -H "Authorization: Bearer stk_live_xxxxxxxxxxxxxxxxxxxxxxxx"
 ```
 
 **Response** — `200 OK`:
@@ -84,7 +84,7 @@ Create a ticket.
 
 ```bash
 curl -X POST https://support.example.com/api/v1/tickets \
-  -H "Authorization: Bearer sk_live_xxxxxxxxxxxxxxxxxxxxxxxx" \
+  -H "Authorization: Bearer stk_live_xxxxxxxxxxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Jane Doe",
@@ -99,7 +99,7 @@ curl -X POST https://support.example.com/api/v1/tickets \
 await fetch("https://support.example.com/api/v1/tickets", {
   method: "POST",
   headers: {
-    Authorization: "Bearer sk_live_xxxxxxxxxxxxxxxxxxxxxxxx",
+    Authorization: "Bearer stk_live_xxxxxxxxxxxxxxxxxxxxxxxx",
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
@@ -136,7 +136,7 @@ site without redirecting to the portal.
 
 ```bash
 curl https://support.example.com/api/v1/tickets/cku1a2b3c4d5e6f \
-  -H "Authorization: Bearer sk_live_xxxxxxxxxxxxxxxxxxxxxxxx"
+  -H "Authorization: Bearer stk_live_xxxxxxxxxxxxxxxxxxxxxxxx"
 ```
 
 **Response** — `200 OK`:
@@ -163,7 +163,7 @@ site, not just its status.
 
 ```bash
 curl https://support.example.com/api/v1/tickets/cku1a2b3c4d5e6f/comments \
-  -H "Authorization: Bearer sk_live_xxxxxxxxxxxxxxxxxxxxxxxx"
+  -H "Authorization: Bearer stk_live_xxxxxxxxxxxxxxxxxxxxxxxx"
 ```
 
 **Response** — `200 OK`:
@@ -195,7 +195,7 @@ on your own site. Returns up to 50; there's no pagination yet.
 
 ```bash
 curl "https://support.example.com/api/v1/tickets?email=jane@example.com" \
-  -H "Authorization: Bearer sk_live_xxxxxxxxxxxxxxxxxxxxxxxx"
+  -H "Authorization: Bearer stk_live_xxxxxxxxxxxxxxxxxxxxxxxx"
 ```
 
 **Response** — `200 OK`:

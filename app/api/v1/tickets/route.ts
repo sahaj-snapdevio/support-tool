@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/v1/tickets — public API, authenticated with an API key
-// (Authorization: Bearer sk_live_...). See docs/api.md for the full
+// (Authorization: Bearer stk_live_...). See docs/api.md for the full
 // reference. JSON only — attachments aren't supported via the API yet.
 export async function POST(request: NextRequest) {
   let apiKey: { id: string; name: string };

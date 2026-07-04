@@ -115,7 +115,7 @@ shape — this refactor must be invisible to the existing customer portal.
 ```ts
 // lib/api-keys.ts
 export function generateApiKey(): { raw: string; prefix: string; hash: string } {
-  const raw = `sk_live_${createId()}${createId()}`; // cuid2 is CSPRNG-backed — no crypto.randomUUID/Math.random per project convention
+  const raw = `stk_live_${createId()}${createId()}`; // cuid2 is CSPRNG-backed — no crypto.randomUUID/Math.random per project convention
   return { raw, prefix: raw.slice(0, 16), hash: sha256(raw) };
 }
 
@@ -148,17 +148,23 @@ tokens.
 
 The raw key is shown to the admin **exactly once**, at creation, in the
 create-key dialog — never retrievable again, matching every SaaS API-key
-UX convention. Only `keyPrefix` (e.g. `sk_live_a1b2c3d4`) is stored
+UX convention. Only `keyPrefix` (e.g. `stk_live_a1b2c3d4`) is stored
 visibly, so the admin can identify *which* key is which in a list without
 the full secret ever touching the database in plaintext or being
 re-displayable.
+
+**Addendum:** the prefix is `stk_live_`, not `sk_live_` as originally
+written above — `sk_live_` is Stripe's own secret-key format, and reusing
+it made every placeholder example in this doc and `docs/api.md` trip
+GitHub's push-protection secret scanner as a false-positive "Stripe API
+key" match. Renamed before shipping.
 
 ## New routes
 
 ### `POST /api/v1/tickets`
 
 ```
-Authorization: Bearer sk_live_xxxxxxxxxxxxxxxxxxxxxxxx
+Authorization: Bearer stk_live_xxxxxxxxxxxxxxxxxxxxxxxx
 Content-Type: application/json
 
 {

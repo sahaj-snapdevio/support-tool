@@ -1,9 +1,11 @@
 "use client";
 
 import {
+  BookOpenIcon,
   ChatTextIcon,
   ClockCounterClockwiseIcon,
   type Icon,
+  KeyIcon,
   PaintBrushIcon,
   SquaresFourIcon,
   TagIcon,
@@ -57,6 +59,16 @@ const ROUTE_META: Record<string, RouteMeta> = {
     description:
       "Manage ticket statuses and categories available to agents and customers.",
     icon: TagIcon,
+  },
+  "/admin/api-keys": {
+    title: "API Keys",
+    description: "Let external websites create tickets programmatically.",
+    icon: KeyIcon,
+  },
+  "/admin/api-keys/docs": {
+    title: "API Documentation",
+    description: "Reference for integrating with the public API.",
+    icon: BookOpenIcon,
   },
 };
 

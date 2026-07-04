@@ -197,11 +197,18 @@ export function AgentReplyForm({
 
       {error && <p className="text-xs text-red-600">{error}</p>}
 
-      {/* Compose row */}
-      <div className="flex items-end gap-2">
+      {/* Compose row — one unified pill (attach + input + send), WhatsApp-style */}
+      <div
+        className={cn(
+          "flex items-end gap-1 rounded-3xl border bg-card pl-1.5 pr-1.5 py-1.5 transition-colors",
+          isInternal
+            ? "border-amber-200 focus-within:border-amber-400"
+            : "border-input focus-within:border-ring"
+        )}
+      >
         <label
           className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-md border border-border transition-colors",
+            "flex size-9 shrink-0 items-center justify-center rounded-full transition-colors",
             maxNewFiles > 0 && !submitting
               ? "text-muted-foreground hover:text-foreground hover:bg-accent cursor-pointer"
               : "text-muted-foreground/40 cursor-not-allowed"
@@ -223,6 +230,7 @@ export function AgentReplyForm({
         <div className="flex-1 min-w-0">
           <RichTextEditor
             cannedResponses={cannedResponses}
+            className="rounded-none border-0 bg-transparent focus-within:ring-0"
             compact
             disabled={submitting}
             onBlur={() => setComposing(false)}
@@ -243,7 +251,7 @@ export function AgentReplyForm({
 
         <Button
           className={cn(
-            "size-10 shrink-0 rounded-full p-0",
+            "size-9 shrink-0 rounded-full p-0",
             isInternal
               ? "bg-amber-600 hover:bg-amber-700 text-white"
               : "bg-primary hover:bg-primary/90 text-primary-foreground"

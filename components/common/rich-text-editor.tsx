@@ -322,8 +322,10 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         class: cn(
-          "tiptap-content focus:outline-none px-4 py-3",
-          compact ? "min-h-9 max-h-40 overflow-y-auto" : "min-h-[96px]"
+          "tiptap-content focus:outline-none",
+          compact
+            ? "min-h-9 max-h-40 overflow-y-auto px-2 py-1.5"
+            : "min-h-[96px] px-4 py-3"
         ),
       },
       handleKeyDown: (view, event) => {

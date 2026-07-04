@@ -12,7 +12,7 @@ import { MethodBadge } from "./_components/method-badge";
 export const metadata = { title: "API Docs" };
 
 const CURL_CONFIG = `curl https://support.example.com/api/v1/config \\
-  -H "Authorization: Bearer sk_live_xxxxxxxxxxxxxxxxxxxxxxxx"`;
+  -H "Authorization: Bearer stk_live_xxxxxxxxxxxxxxxxxxxxxxxx"`;
 
 const RESPONSE_CONFIG = `{
   "categories": [{ "slug": "bug", "label": "Bug", "color": "red" }],
@@ -31,7 +31,7 @@ const RESPONSE_CONFIG = `{
 }`;
 
 const CURL_CREATE = `curl -X POST https://support.example.com/api/v1/tickets \\
-  -H "Authorization: Bearer sk_live_xxxxxxxxxxxxxxxxxxxxxxxx" \\
+  -H "Authorization: Bearer stk_live_xxxxxxxxxxxxxxxxxxxxxxxx" \\
   -H "Content-Type: application/json" \\
   -d '{
     "name": "Jane Doe",
@@ -44,7 +44,7 @@ const CURL_CREATE = `curl -X POST https://support.example.com/api/v1/tickets \\
 const JS_CREATE = `await fetch("https://support.example.com/api/v1/tickets", {
   method: "POST",
   headers: {
-    Authorization: "Bearer sk_live_xxxxxxxxxxxxxxxxxxxxxxxx",
+    Authorization: "Bearer stk_live_xxxxxxxxxxxxxxxxxxxxxxxx",
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
@@ -64,7 +64,7 @@ const RESPONSE_CREATE = `{
 }`;
 
 const CURL_GET = `curl https://support.example.com/api/v1/tickets/cku1a2b3c4d5e6f \\
-  -H "Authorization: Bearer sk_live_xxxxxxxxxxxxxxxxxxxxxxxx"`;
+  -H "Authorization: Bearer stk_live_xxxxxxxxxxxxxxxxxxxxxxxx"`;
 
 const RESPONSE_GET = `{
   "id": "cku1a2b3c4d5e6f",
@@ -78,7 +78,7 @@ const RESPONSE_GET = `{
 const ERROR_EXAMPLE = `{ "error": "Invalid category." }`;
 
 const CURL_COMMENTS = `curl https://support.example.com/api/v1/tickets/cku1a2b3c4d5e6f/comments \\
-  -H "Authorization: Bearer sk_live_xxxxxxxxxxxxxxxxxxxxxxxx"`;
+  -H "Authorization: Bearer stk_live_xxxxxxxxxxxxxxxxxxxxxxxx"`;
 
 const RESPONSE_COMMENTS = `{
   "comments": [
@@ -93,7 +93,7 @@ const RESPONSE_COMMENTS = `{
 }`;
 
 const CURL_LIST = `curl "https://support.example.com/api/v1/tickets?email=jane@example.com" \\
-  -H "Authorization: Bearer sk_live_xxxxxxxxxxxxxxxxxxxxxxxx"`;
+  -H "Authorization: Bearer stk_live_xxxxxxxxxxxxxxxxxxxxxxxx"`;
 
 const RESPONSE_LIST = `{
   "tickets": [
@@ -197,7 +197,7 @@ export default async function ApiDocsPage() {
         <p className="text-sm text-muted-foreground">
           Send it as a bearer token on every request:
         </p>
-        <CodeBlock code="Authorization: Bearer sk_live_xxxxxxxxxxxxxxxxxxxxxxxx" />
+        <CodeBlock code="Authorization: Bearer stk_live_xxxxxxxxxxxxxxxxxxxxxxxx" />
         <p className="text-sm text-muted-foreground">
           A missing, invalid, or revoked key gets a{" "}
           <code className="text-xs bg-muted rounded px-1 py-0.5">401</code>.

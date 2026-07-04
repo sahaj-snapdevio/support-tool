@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       { key: "base_url", value: baseUrl, type: "string" },
       {
         key: "api_key",
-        value: "sk_live_xxxxxxxxxxxxxxxxxxxxxxxx",
+        value: "stk_live_xxxxxxxxxxxxxxxxxxxxxxxx",
         type: "string",
       },
       { key: "ticket_id", value: "", type: "string" },

@@ -112,18 +112,29 @@ export default async function AgentTicketDetailPage({ params }: Props) {
   return (
     <div className="p-4 lg:p-6">
       <TicketDetailRealtime ticketId={ticket.id} />
-      {/* Breadcrumb — stays pinned to the top of the scroll area */}
-      <div className="sticky top-0 z-10 -mx-4 lg:-mx-6 mb-5 flex items-center gap-2 bg-surface px-4 py-3 lg:px-6">
+      {/* Breadcrumb — stays pinned to the top of the scroll area, carrying the
+          ticket's subject + status along so context stays visible while
+          scrolled away from the ticket header card below. */}
+      <div className="sticky top-0 z-10 -mx-4 lg:-mx-6 mb-5 flex h-12 items-center gap-2 bg-surface px-4 lg:px-6">
         <Link
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           href="/tickets"
         >
           <ArrowLeftIcon className="size-3.5" />
           All Tickets
         </Link>
-        <span className="text-muted-foreground text-sm">/</span>
-        <span className="text-sm text-foreground font-medium">
+        <span className="shrink-0 text-muted-foreground text-sm">/</span>
+        <span className="shrink-0 text-sm text-foreground font-medium">
           #{ticket.ticketNumber}
+        </span>
+        <span className="shrink-0 text-muted-foreground text-sm">·</span>
+        <span className="min-w-0 truncate text-sm text-foreground">
+          {ticket.subject}
+        </span>
+        <span
+          className={`ml-auto inline-flex shrink-0 items-center rounded border px-2.5 py-1 text-xs font-medium ${COLOR_BADGE[statusMap[ticket.status]?.color ?? "slate"] ?? ""}`}
+        >
+          {statusMap[ticket.status]?.label ?? ticket.status}
         </span>
       </div>
 
@@ -160,20 +171,16 @@ export default async function AgentTicketDetailPage({ params }: Props) {
           </div>
 
           {/* Original description — customer's first message (left) */}
-          <div className="flex justify-start">
+          <div className="flex justify-start gap-2">
+            <div className="size-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-medium shrink-0">
+              {getInitials(ticket.customerName)}
+            </div>
             <div className="max-w-[85%] bg-accent rounded-xl border border-border p-4">
               <div className="flex items-center gap-2 mb-2">
-                <div className="size-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-medium shrink-0">
-                  {getInitials(ticket.customerName)}
-                </div>
-                <div className="min-w-0">
-                  <span className="text-sm font-medium text-foreground">
-                    {ticket.customerName}
-                  </span>
-                  <span className="text-xs text-muted-foreground ml-2">
-                    Customer
-                  </span>
-                </div>
+                <span className="text-sm font-medium text-foreground">
+                  {ticket.customerName}
+                </span>
+                <span className="text-xs text-muted-foreground">Customer</span>
                 <span className="text-xs text-muted-foreground ml-auto shrink-0">
                   {formatTicketDateTime(ticket.createdAt)}
                 </span>
@@ -203,11 +210,23 @@ export default async function AgentTicketDetailPage({ params }: Props) {
             const isCustomer = comment.authorRole === "customer";
             const commentAttachments =
               attachmentsByComment.get(comment.id) ?? [];
+            const avatar = (
+              <div
+                className={`size-7 rounded-full flex items-center justify-center text-xs font-medium shrink-0 ${
+                  isCustomer
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-stone text-white"
+                }`}
+              >
+                {getInitials(comment.authorName)}
+              </div>
+            );
             return (
               <div
-                className={`flex ${isCustomer ? "justify-start" : "justify-end"}`}
+                className={`flex gap-2 ${isCustomer ? "justify-start" : "justify-end"}`}
                 key={comment.id}
               >
+                {isCustomer && avatar}
                 <div
                   className={`max-w-[85%] rounded-xl border p-4 ${
                     comment.isInternal
@@ -218,15 +237,6 @@ export default async function AgentTicketDetailPage({ params }: Props) {
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <div
-                      className={`size-7 rounded-full flex items-center justify-center text-xs font-medium shrink-0 ${
-                        isCustomer
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-stone text-white"
-                      }`}
-                    >
-                      {getInitials(comment.authorName)}
-                    </div>
                     <span className="text-sm font-medium text-foreground">
                       {comment.authorName}
                     </span>
@@ -260,15 +270,21 @@ export default async function AgentTicketDetailPage({ params }: Props) {
                     </div>
                   )}
                 </div>
+                {!isCustomer && avatar}
               </div>
             );
           })}
 
           {/* Reply form — stays pinned to the bottom of the screen while scrolling.
               The transparent pt-4 on the sticky wrapper keeps a visible gap above
-              the card as messages scroll behind it, instead of butting up flush. */}
+              the card as messages scroll behind it, instead of butting up flush.
+              The bg-surface spacer below the card gives it breathing room from the
+              true viewport edge WITHOUT leaving a see-through gap — sticky's own
+              `bottom` offset would leave a transparent strip there that scrolling
+              message content shows through, since sticky elements don't stop the
+              page underneath from scrolling. */}
           {isOpen && (
-            <div className="sticky bottom-0 z-10 pt-4">
+            <div className="sticky bottom-0 z-10 -ml-2 pt-4">
               <div className="bg-card rounded-xl border border-border shadow-soft p-5">
                 <AgentReplyForm
                   cannedResponses={cannedResponses}
@@ -276,6 +292,7 @@ export default async function AgentTicketDetailPage({ params }: Props) {
                   totalAttachments={attachments.length}
                 />
               </div>
+              <div className="h-3 bg-surface" />
             </div>
           )}
 
@@ -283,7 +300,7 @@ export default async function AgentTicketDetailPage({ params }: Props) {
         </div>
 
         {/* ── Right sidebar ── */}
-        <div className="w-full lg:w-72 shrink-0 lg:sticky lg:top-6 lg:self-start">
+        <div className="w-full lg:w-72 shrink-0 lg:sticky lg:top-16 lg:self-start">
           <TicketInfoSidebar
             activity={activity}
             agents={agents}
