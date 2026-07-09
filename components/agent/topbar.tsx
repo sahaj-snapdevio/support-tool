@@ -86,7 +86,7 @@ function getMeta(pathname: string): RouteMeta {
   return { title: "" };
 }
 
-export function TopBar() {
+export function TopBar({ userId }: { userId: string }) {
   const pathname = usePathname();
   const { title, description, icon: Icon } = getMeta(pathname);
 
@@ -105,7 +105,7 @@ export function TopBar() {
           )}
         </div>
       </div>
-      <NotificationBell />
+      <NotificationBell userId={userId} />
     </div>
   );
 }

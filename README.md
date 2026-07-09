@@ -171,23 +171,19 @@ docker compose run --rm app pnpm create:admin you@example.com "Your Name" "a-str
 Sign in at `/login` with that email and password. Omit the password argument to create a
 magic-link-only admin instead (requires SMTP to be configured to sign in).
 
-**Enabling Pusher Beams (OS push) with Docker:** the instance id is baked into the
-client bundle at build time, so pass it as a build arg, then set the secret at runtime:
+**Enabling Pusher Beams (OS push) or Pusher Channels (real-time updates) with Docker:**
+just put all the `PUSHER_*`/`NEXT_PUBLIC_PUSHER_*` values in `.env` — the compose files
+already wire the `NEXT_PUBLIC_*` ones into the build automatically (`build.args:` reads
+straight from `.env`), no manual `--build-arg` flags needed:
 
 ```bash
-docker compose build --build-arg NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID=your-instance-id
-# put PUSHER_BEAMS_SECRET_KEY in .env, then:
-docker compose up -d
+docker compose build && docker compose up -d
 ```
 
-**Enabling Pusher Channels (real-time updates) with Docker:** same idea, different
-build args — the key and cluster are also baked in at build time:
-
-```bash
-docker compose build --build-arg NEXT_PUBLIC_PUSHER_KEY=your-key --build-arg NEXT_PUBLIC_PUSHER_CLUSTER=us2
-# put PUSHER_APP_ID and PUSHER_SECRET in .env, then:
-docker compose up -d
-```
+`NEXT_PUBLIC_*` vars are baked into the browser bundle **once, at build time** — unlike
+every other setting, changing one in `.env` later requires the same `build && up -d`
+again to take effect. Restarting the container alone (`docker compose restart`) is not
+enough.
 
 ---
 

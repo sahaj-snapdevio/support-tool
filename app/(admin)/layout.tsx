@@ -36,7 +36,7 @@ export default async function AdminLayout({
             userRole="admin"
           />
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-            <TopBar />
+            <TopBar userId={session.id} />
             <main className="flex-1 overflow-y-auto bg-surface">
               {children}
             </main>

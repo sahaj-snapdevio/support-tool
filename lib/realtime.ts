@@ -73,3 +73,18 @@ export async function publishTicketCommentCreated(
     {}
   );
 }
+
+/**
+ * Notify one user's notification bell that a new notification was created,
+ * so it refetches immediately instead of waiting on its polling fallback.
+ * No-op when Channels isn't configured.
+ */
+export async function publishNotificationCreated(
+  userId: string
+): Promise<void> {
+  await getClient()?.trigger(
+    `private-user-${userId}`,
+    "notification.created",
+    {}
+  );
+}

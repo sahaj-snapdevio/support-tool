@@ -8,6 +8,7 @@ WORKDIR /app
 # ── Install dependencies (cached on lockfile) ─────────────────────────────────
 FROM base AS deps
 COPY package.json pnpm-lock.yaml ./
+# -- on ubuntu server its need, do not remove
 ENV NODE_OPTIONS="--max-old-space-size=512"
 
 RUN pnpm config set dangerouslyAllowAllBuilds true \

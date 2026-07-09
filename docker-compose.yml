@@ -8,6 +8,12 @@
 # bundled one? Use docker-compose.external-db.yml instead — see that file for usage.
 #
 # The one-shot `migrate` service runs DB migrations + seeds before app/worker start.
+#
+# NEXT_PUBLIC_* vars (Pusher Beams/Channels) are read from .env automatically at
+# build time via the `args:` below — no need to pass --build-arg by hand. If you
+# add/change one of those values in .env, you MUST rebuild for it to take effect
+# (`docker compose build && docker compose up -d`) — NEXT_PUBLIC_* is baked into
+# the browser bundle once at build time, not read live like every other var.
 
 services:
   postgres:
@@ -26,7 +32,12 @@ services:
       retries: 10
 
   migrate:
-    build: .
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID: ${NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID:-}
+        NEXT_PUBLIC_PUSHER_KEY: ${NEXT_PUBLIC_PUSHER_KEY:-}
+        NEXT_PUBLIC_PUSHER_CLUSTER: ${NEXT_PUBLIC_PUSHER_CLUSTER:-}
     image: support-tool:latest
     command: pnpm setup
     env_file: .env
@@ -36,7 +47,12 @@ services:
     restart: "no"
 
   app:
-    build: .
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID: ${NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID:-}
+        NEXT_PUBLIC_PUSHER_KEY: ${NEXT_PUBLIC_PUSHER_KEY:-}
+        NEXT_PUBLIC_PUSHER_CLUSTER: ${NEXT_PUBLIC_PUSHER_CLUSTER:-}
     image: support-tool:latest
     command: pnpm start
     env_file: .env
@@ -52,7 +68,12 @@ services:
     restart: unless-stopped
 
   worker:
-    build: .
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID: ${NEXT_PUBLIC_PUSHER_BEAMS_INSTANCE_ID:-}
+        NEXT_PUBLIC_PUSHER_KEY: ${NEXT_PUBLIC_PUSHER_KEY:-}
+        NEXT_PUBLIC_PUSHER_CLUSTER: ${NEXT_PUBLIC_PUSHER_CLUSTER:-}
     image: support-tool:latest
     command: pnpm worker:start
     env_file: .env

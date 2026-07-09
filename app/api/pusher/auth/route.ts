@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { authorizeChannel } from "@/lib/realtime";
 
 const TICKET_CHANNEL_PREFIX = "private-ticket-";
+const USER_CHANNEL_PREFIX = "private-user-";
 
 // POST /api/pusher/auth — authorizes a client's subscription to a private
 // Pusher Channels channel. NOT covered by the middleware matcher (see
@@ -16,6 +17,8 @@ const TICKET_CHANNEL_PREFIX = "private-ticket-";
 //   - Agent/admin (session cookie): authorized for `private-tickets` (the
 //     list) and any `private-ticket-{id}` — the app already lets any
 //     agent/admin view any ticket, so no finer-grained restriction needed.
+//     `private-user-{id}` (the notification bell) is stricter — only that
+//     exact agent's own session may subscribe to their own channel.
 //   - Customer (no session — proves identity via their ticket's `token`,
 //     sent as an extra `channelAuthorization` param): authorized ONLY for
 //     `private-ticket-{id}` where `token` matches that exact ticket's
@@ -62,6 +65,11 @@ export async function POST(request: NextRequest) {
       if (!ticket || ticket.customerToken !== token) {
         return NextResponse.json({ error: "Forbidden." }, { status: 403 });
       }
+    }
+  } else if (channel.startsWith(USER_CHANNEL_PREFIX)) {
+    const targetUserId = channel.slice(USER_CHANNEL_PREFIX.length);
+    if (!isAgent || session?.user.id !== targetUserId) {
+      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
   } else {
     return NextResponse.json({ error: "Unknown channel." }, { status: 403 });

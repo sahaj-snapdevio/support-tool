@@ -1,16 +1,17 @@
 import { createId } from "@paralleldrive/cuid2";
 import { and, count, desc, eq } from "drizzle-orm";
-import { db } from "@/lib/db";
 import { notifications } from "@/db/schema";
+import { db } from "@/lib/db";
+import { publishNotificationCreated } from "@/lib/realtime";
 
 export type Notification = typeof notifications.$inferSelect;
 
 export interface NewNotification {
-  type: string;
-  title: string;
   body?: string;
   ticketId?: string;
   ticketNumber?: number;
+  title: string;
+  type: string;
 }
 
 /** Insert one notification per recipient. No-op for an empty recipient list. */
@@ -19,7 +20,9 @@ export async function createNotifications(
   data: NewNotification
 ): Promise<void> {
   const ids = [...new Set(recipientIds)].filter(Boolean);
-  if (ids.length === 0) return;
+  if (ids.length === 0) {
+    return;
+  }
 
   const now = new Date();
   await db.insert(notifications).values(
@@ -34,6 +37,14 @@ export async function createNotifications(
       isRead: false,
       createdAt: now,
     }))
+  );
+
+  await Promise.all(
+    ids.map((userId) =>
+      publishNotificationCreated(userId).catch((err) =>
+        console.error("[realtime.notification_created]", err)
+      )
+    )
   );
 }
 
@@ -53,11 +64,16 @@ export async function getUnreadCount(userId: string): Promise<number> {
   const [row] = await db
     .select({ c: count() })
     .from(notifications)
-    .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+    .where(
+      and(eq(notifications.userId, userId), eq(notifications.isRead, false))
+    );
   return Number(row?.c ?? 0);
 }
 
-export async function markNotificationRead(userId: string, id: string): Promise<void> {
+export async function markNotificationRead(
+  userId: string,
+  id: string
+): Promise<void> {
   await db
     .update(notifications)
     .set({ isRead: true })
@@ -68,5 +84,7 @@ export async function markAllNotificationsRead(userId: string): Promise<void> {
   await db
     .update(notifications)
     .set({ isRead: true })
-    .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+    .where(
+      and(eq(notifications.userId, userId), eq(notifications.isRead, false))
+    );
 }
