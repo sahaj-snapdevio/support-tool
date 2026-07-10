@@ -1,0 +1,13 @@
+{
+  "name": "support-widget-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Demo customer website integrating the Support Tool public API (server-to-server).",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=20.12"
+  }
+}
