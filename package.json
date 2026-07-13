@@ -34,6 +34,7 @@
     "@pusher/push-notifications-server": "^1.2.7",
     "@pusher/push-notifications-web": "^1.1.0",
     "@react-email/render": "^2.0.8",
+    "@scalar/api-reference-react": "^0.9.54",
     "@tiptap/extension-link": "^3.27.1",
     "@tiptap/extension-placeholder": "^3.27.1",
     "@tiptap/extension-underline": "^3.27.1",

@@ -18,7 +18,6 @@
       "!db/schema",
       "!db/migrations",
       "!.remember",
-      "!examples",
       "!next-env.d.ts",
       "!workers/**/worker-configuration.d.ts",
       "!workers/**/.wrangler"

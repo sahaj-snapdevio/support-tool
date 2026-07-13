@@ -3,6 +3,14 @@
 Support Tool exposes a small REST API so your own website's backend can
 create tickets without sending customers through the customer portal form.
 
+> **Interactive docs & machine-readable contract.** Admins get an
+> interactive reference (rendered by Scalar, with a built-in "Test Request"
+> client) at `/admin/api-keys/docs`. The canonical contract is the OpenAPI
+> 3.1 spec in `lib/openapi-spec.ts`, downloadable at
+> `GET /api/admin/api-keys/openapi` — import it into Postman or any other
+> API tooling. When the API changes, update the spec and this document
+> together.
+
 This is a **server-to-server** API: your backend calls it with a secret API
 key. Don't call it directly from a customer's browser — the key would be
 exposed to anyone who opens your page's network tab.
