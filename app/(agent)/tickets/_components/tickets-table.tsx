@@ -202,7 +202,7 @@ export function TicketsTable({
       {/* Table */}
       <div className="bg-card rounded-xl border border-border shadow-soft overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full table-fixed text-sm">
+          <table className="w-full table-fixed text-xs">
             <thead>
               <tr className="border-b border-border bg-accent/50">
                 {isAdmin && (
@@ -225,7 +225,7 @@ export function TicketsTable({
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide w-36 hidden md:table-cell">
                   Category
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide w-28 hidden md:table-cell">
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide w-32 hidden md:table-cell">
                   Priority
                 </th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide w-40 hidden lg:table-cell">

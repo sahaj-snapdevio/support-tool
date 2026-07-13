@@ -173,7 +173,7 @@ export function TicketRow({
         </td>
         <td className="px-4 py-3">
           <Link
-            className="font-medium text-foreground hover:underline line-clamp-1"
+            className="text-[13px] font-medium text-foreground hover:underline line-clamp-1"
             href={`/tickets/${row.id}`}
           >
             {row.subject}
@@ -189,6 +189,7 @@ export function TicketRow({
         </td>
         <td className="px-4 py-3 hidden sm:table-cell">
           <SearchableSelect
+            compact
             disabled={loading}
             onValueChange={handleStatusChange}
             options={statuses.map((s) => ({ value: s.slug, label: s.label }))}
@@ -206,6 +207,7 @@ export function TicketRow({
         </td>
         <td className="px-4 py-3 hidden md:table-cell">
           <SearchableSelect
+            compact
             disabled={loading}
             onValueChange={handlePriorityChange}
             options={priorities.map((p) => ({
@@ -227,6 +229,7 @@ export function TicketRow({
         </td>
         <td className="px-4 py-3 hidden lg:table-cell">
           <SearchableSelect
+            compact
             disabled={loading}
             onValueChange={handleAssignChange}
             options={[

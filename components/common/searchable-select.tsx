@@ -19,12 +19,18 @@ export interface SelectOption {
 }
 
 interface Props {
+  /**
+   * Tighter trigger chrome (smaller padding/gap/caret) for dense contexts
+   * like table cells, where the default caret + padding can crowd out the
+   * selected value in a fixed-width column.
+   */
+  compact?: boolean;
+  disabled?: boolean;
   onValueChange: (value: string) => void;
   options: SelectOption[];
   placeholder?: string;
   searchPlaceholder?: string;
   triggerClassName?: string;
-  disabled?: boolean;
   value: string;
 }
 
@@ -41,6 +47,7 @@ export function SearchableSelect({
   searchPlaceholder = "Search…",
   triggerClassName,
   disabled = false,
+  compact = false,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -74,12 +81,14 @@ export function SearchableSelect({
       <PopoverTrigger asChild>
         <button
           aria-expanded={open}
-          disabled={disabled}
           className={cn(
-            "flex h-10 items-center justify-between gap-2 rounded-md border border-border bg-transparent px-3 text-sm text-foreground transition-colors hover:border-stone focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-50",
+            "flex h-10 items-center justify-between rounded-md border border-border bg-transparent text-sm text-foreground transition-colors hover:border-stone focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-50",
+            compact ? "gap-1 px-2" : "gap-2 px-3",
             triggerClassName
           )}
+          disabled={disabled}
           role="combobox"
+          title={selected?.label}
           type="button"
         >
           <span
@@ -87,7 +96,12 @@ export function SearchableSelect({
           >
             {selected?.label ?? placeholder}
           </span>
-          <CaretUpDownIcon className="size-4 shrink-0 text-muted-foreground" />
+          <CaretUpDownIcon
+            className={cn(
+              "shrink-0 text-muted-foreground",
+              compact ? "size-3" : "size-4"
+            )}
+          />
         </button>
       </PopoverTrigger>
 
