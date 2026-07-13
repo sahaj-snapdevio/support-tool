@@ -3,7 +3,17 @@ import {
   CaretRightIcon,
   TicketIcon,
 } from "@phosphor-icons/react/dist/ssr";
-import { and, count, desc, eq, gte, ilike, or } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  lte,
+  or,
+} from "drizzle-orm";
 import Link from "next/link";
 import { Suspense } from "react";
 import { TicketsListRealtime } from "@/components/agent/tickets-list-realtime";
@@ -38,6 +48,8 @@ type SearchParams = {
   category?: string;
   priority?: string;
   range?: string;
+  from?: string;
+  to?: string;
   awaiting?: string;
   mine?: string;
   page?: string;
@@ -202,13 +214,38 @@ async function TicketsResults({
     conditions.push(or(...textConditions));
   }
   if (statusFilter) {
-    conditions.push(eq(tickets.status, statusFilter));
+    // Supports a comma-separated slug list — dashboard buckets like
+    // "In Progress" and "Closed" span multiple statuses.
+    const statusSlugs = statusFilter
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
+    if (statusSlugs.length > 1) {
+      conditions.push(inArray(tickets.status, statusSlugs));
+    } else if (statusSlugs.length === 1) {
+      conditions.push(eq(tickets.status, statusSlugs[0]));
+    }
   }
   if (categoryFilter) {
     conditions.push(eq(tickets.category, categoryFilter));
   }
   if (priorityFilter) {
     conditions.push(eq(tickets.priority, priorityFilter));
+  }
+  if (rangeFilter === "custom") {
+    // Custom range: from/to are YYYY-MM-DD day bounds, both optional.
+    const isDay = (v: string | undefined): v is string =>
+      !!v && /^\d{4}-\d{2}-\d{2}$/.test(v);
+    if (isDay(params.from)) {
+      conditions.push(
+        gte(tickets.createdAt, new Date(`${params.from}T00:00:00`))
+      );
+    }
+    if (isDay(params.to)) {
+      conditions.push(
+        lte(tickets.createdAt, new Date(`${params.to}T23:59:59.999`))
+      );
+    }
   }
   const rangeStart = getRangeStart(rangeFilter);
   if (rangeStart) {

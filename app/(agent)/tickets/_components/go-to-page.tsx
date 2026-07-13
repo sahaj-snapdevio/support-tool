@@ -33,13 +33,27 @@ export function GoToPage({ totalPages }: { totalPages: number }) {
         className="h-8 w-16 text-xs text-center px-1"
         max={totalPages}
         min={1}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => {
+          // The HTML max attribute only constrains the spinner arrows —
+          // typed input must be clamped by hand to keep 1..totalPages.
+          const raw = e.target.value;
+          if (raw === "") {
+            setValue("");
+            return;
+          }
+          const n = Number.parseInt(raw, 10);
+          if (!Number.isFinite(n)) {
+            return;
+          }
+          setValue(String(Math.min(Math.max(1, n), totalPages)));
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
             go();
           }
         }}
+        placeholder={`1–${totalPages}`}
         type="number"
         value={value}
       />

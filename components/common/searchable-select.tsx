@@ -29,6 +29,12 @@ interface Props {
   onValueChange: (value: string) => void;
   options: SelectOption[];
   placeholder?: string;
+  /**
+   * Set false for short, fixed lists (e.g. page sizes) — hides the search
+   * box and lets the menu hug the trigger width instead of reserving room
+   * for an input. Keyboard navigation still works.
+   */
+  search?: boolean;
   searchPlaceholder?: string;
   triggerClassName?: string;
   value: string;
@@ -44,6 +50,7 @@ export function SearchableSelect({
   onValueChange,
   options,
   placeholder = "Select",
+  search = true,
   searchPlaceholder = "Search…",
   triggerClassName,
   disabled = false,
@@ -68,11 +75,31 @@ export function SearchableSelect({
     setQuery("");
   };
 
+  const handleListKeys = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActive((a) => Math.min(a + 1, filtered.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActive((a) => Math.max(a - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const opt = filtered[active];
+      if (opt) {
+        pick(opt.value);
+      }
+    }
+  };
+
   return (
     <Popover
       onOpenChange={(o) => {
         setOpen(o);
-        if (!o) {
+        if (o) {
+          // Start keyboard navigation on the current selection.
+          const idx = options.findIndex((opt) => opt.value === value);
+          setActive(idx >= 0 ? idx : 0);
+        } else {
           setQuery("");
         }
       }}
@@ -107,37 +134,29 @@ export function SearchableSelect({
 
       <PopoverContent
         align="start"
-        className="w-(--radix-popover-trigger-width) min-w-48 p-0"
+        className={cn(
+          "w-(--radix-popover-trigger-width) p-0",
+          search && "min-w-48"
+        )}
+        onKeyDown={search ? undefined : handleListKeys}
       >
-        <div className="flex items-center gap-2 border-b border-border px-2.5">
-          <MagnifyingGlassIcon className="size-4 shrink-0 text-muted-foreground" />
-          {/* biome-ignore lint/a11y/noAutofocus: focus the search when the popover opens */}
-          <input
-            autoFocus
-            className="h-9 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setActive(0);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "ArrowDown") {
-                e.preventDefault();
-                setActive((a) => Math.min(a + 1, filtered.length - 1));
-              } else if (e.key === "ArrowUp") {
-                e.preventDefault();
-                setActive((a) => Math.max(a - 1, 0));
-              } else if (e.key === "Enter") {
-                e.preventDefault();
-                const opt = filtered[active];
-                if (opt) {
-                  pick(opt.value);
-                }
-              }
-            }}
-            placeholder={searchPlaceholder}
-            value={query}
-          />
-        </div>
+        {search && (
+          <div className="flex items-center gap-2 border-b border-border px-2.5">
+            <MagnifyingGlassIcon className="size-4 shrink-0 text-muted-foreground" />
+            <input
+              // focus the search when the popover opens
+              autoFocus
+              className="h-9 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setActive(0);
+              }}
+              onKeyDown={handleListKeys}
+              placeholder={searchPlaceholder}
+              value={query}
+            />
+          </div>
+        )}
         <div className="max-h-60 overflow-y-auto p-1">
           {filtered.length === 0 ? (
             <p className="px-2 py-4 text-center text-xs text-muted-foreground">

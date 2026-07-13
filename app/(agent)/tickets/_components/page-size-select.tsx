@@ -4,9 +4,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { SearchableSelect } from "@/components/common/searchable-select";
 import { PAGE_SIZE_OPTIONS } from "./page-size-options";
 
+// Plain numbers — the "per page" context comes from the label next to the
+// select, so a "/ page" suffix on every option would just repeat it.
 const OPTIONS = PAGE_SIZE_OPTIONS.map((n) => ({
   value: String(n),
-  label: `${n} / page`,
+  label: String(n),
 }));
 
 export function PageSizeSelect({ pageSize }: { pageSize: number }) {
@@ -24,7 +26,8 @@ export function PageSizeSelect({ pageSize }: { pageSize: number }) {
     <SearchableSelect
       onValueChange={handleChange}
       options={OPTIONS}
-      triggerClassName="h-8 w-28 text-xs"
+      search={false}
+      triggerClassName="h-8 w-16 text-xs"
       value={String(pageSize)}
     />
   );

@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  ArrowRightIcon,
+  CalendarBlankIcon,
   ChatCircleDotsIcon,
   FunnelIcon,
   MagnifyingGlassIcon,
@@ -11,6 +13,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SearchableSelect } from "@/components/common/searchable-select";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import {
   Popover,
@@ -30,10 +33,22 @@ const RANGE_OPTIONS = [
   { value: "last_day", label: "Last One Day" },
   { value: "last_week", label: "Last 1 Week" },
   { value: "this_month", label: "This Month" },
+  { value: "custom", label: "Custom Range" },
 ];
 const RANGE_LABEL = Object.fromEntries(
   RANGE_OPTIONS.map((o) => [o.value, o.label])
 );
+
+const formatDay = (iso: string) =>
+  new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+const parseDay = (iso: string) => new Date(`${iso}T00:00:00`);
+const toIso = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 interface Props {
   categories: TicketCategory[];
@@ -53,6 +68,8 @@ export function TicketFilters({ statuses, categories, priorities }: Props) {
   const category = searchParams.get("category") ?? "all";
   const priority = searchParams.get("priority") ?? "all";
   const range = searchParams.get("range") ?? "all";
+  const from = searchParams.get("from") ?? "";
+  const to = searchParams.get("to") ?? "";
   const awaiting = searchParams.get("awaiting") === "1";
   const mine = searchParams.get("mine") === "1";
 
@@ -103,7 +120,14 @@ export function TicketFilters({ statuses, categories, priorities }: Props) {
   );
 
   const activeFilters = [
-    status !== "all" && { key: "status", label: statusMap[status] ?? status },
+    status !== "all" && {
+      key: "status",
+      // May be a comma-separated bucket from a dashboard card link.
+      label: status
+        .split(",")
+        .map((v) => statusMap[v] ?? v)
+        .join(" / "),
+    },
     category !== "all" && {
       key: "category",
       label: categoryMap[category] ?? category,
@@ -114,7 +138,16 @@ export function TicketFilters({ statuses, categories, priorities }: Props) {
     },
     range !== "all" && {
       key: "range",
-      label: RANGE_LABEL[range] ?? range,
+      label:
+        range === "custom"
+          ? from && to
+            ? `${formatDay(from)} – ${formatDay(to)}`
+            : from
+              ? `From ${formatDay(from)}`
+              : to
+                ? `Until ${formatDay(to)}`
+                : "Custom Range"
+          : (RANGE_LABEL[range] ?? range),
     },
     mine && { key: "mine", label: "Assigned to me" },
     awaiting && { key: "awaiting", label: "Awaiting reply" },
@@ -130,6 +163,8 @@ export function TicketFilters({ statuses, categories, priorities }: Props) {
       category: "all",
       priority: "all",
       range: "all",
+      from: "",
+      to: "",
       awaiting: "",
       mine: "",
     });
@@ -180,7 +215,7 @@ export function TicketFilters({ statuses, categories, priorities }: Props) {
               )}
             </button>
           </PopoverTrigger>
-          <PopoverContent align="end" className="w-72 p-4 space-y-4">
+          <PopoverContent align="end" className="w-80 p-4 space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-foreground">
                 Filters
@@ -262,13 +297,61 @@ export function TicketFilters({ statuses, categories, priorities }: Props) {
                   Date Range
                 </span>
                 <SearchableSelect
-                  onValueChange={(v) => updateParams({ range: v })}
+                  onValueChange={(v) =>
+                    // Leaving Custom must also drop its dates from the URL.
+                    updateParams(
+                      v === "custom"
+                        ? { range: v }
+                        : { range: v, from: "", to: "" }
+                    )
+                  }
                   options={RANGE_OPTIONS}
                   placeholder="All Time"
                   searchPlaceholder="Search range…"
                   triggerClassName="w-full"
                   value={range}
                 />
+                {range === "custom" && (
+                  <div className="space-y-2 pt-1">
+                    <div className="flex items-center justify-center gap-2">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs",
+                          from ? "text-foreground" : "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarBlankIcon className="size-3.5 shrink-0" />
+                        {from ? formatDay(from) : "Start date"}
+                      </span>
+                      <ArrowRightIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs",
+                          to ? "text-foreground" : "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarBlankIcon className="size-3.5 shrink-0" />
+                        {to ? formatDay(to) : "End date"}
+                      </span>
+                    </div>
+                    <Calendar
+                      className="w-full rounded-md border border-border"
+                      defaultMonth={from ? parseDay(from) : undefined}
+                      disabled={{ after: new Date() }}
+                      mode="range"
+                      onSelect={(r) =>
+                        updateParams({
+                          from: r?.from ? toIso(r.from) : "",
+                          to: r?.to ? toIso(r.to) : "",
+                        })
+                      }
+                      selected={{
+                        from: from ? parseDay(from) : undefined,
+                        to: to ? parseDay(to) : undefined,
+                      }}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -321,7 +404,14 @@ export function TicketFilters({ statuses, categories, priorities }: Props) {
               {f.label}
               <button
                 className="ml-0.5 hover:text-foreground/60"
-                onClick={() => updateParams({ [f.key]: "" })}
+                onClick={() =>
+                  // Removing the range chip must also drop its custom dates.
+                  updateParams(
+                    f.key === "range"
+                      ? { range: "", from: "", to: "" }
+                      : { [f.key]: "" }
+                  )
+                }
                 type="button"
               >
                 <XIcon className="size-3" />
