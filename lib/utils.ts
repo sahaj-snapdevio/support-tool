@@ -9,6 +9,8 @@ export function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+// ⚠ CLIENT COMPONENTS ONLY — formats in the runtime's local timezone; in
+// server components use <LocalDateTime> from components/common/local-datetime.
 export function formatDateTime(value: Date | string | null | undefined) {
   if (!value) {
     return "Never"

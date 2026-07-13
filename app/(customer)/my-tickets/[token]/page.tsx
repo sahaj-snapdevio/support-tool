@@ -2,12 +2,13 @@ import { CaretRightIcon, TicketIcon } from "@phosphor-icons/react/dist/ssr";
 import { desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { LocalDateTime } from "@/components/common/local-datetime";
 import { PRODUCT_NAME } from "@/config/platform";
 import { tickets } from "@/db/schema";
 import { verifyEmailToken } from "@/lib/customer-access";
 import { db } from "@/lib/db";
 import { getTicketCategories, getTicketStatuses } from "@/lib/ticket-config";
-import { COLOR_BADGE, formatTicketDateTime } from "@/lib/tickets";
+import { COLOR_BADGE } from "@/lib/tickets";
 
 interface Props {
   params: Promise<{ token: string }>;
@@ -167,7 +168,7 @@ function TicketGroup({
                 {t.subject}
               </p>
               <p className="text-xs text-stone mt-0.5">
-                {formatTicketDateTime(t.createdAt)}
+                <LocalDateTime date={t.createdAt} />
               </p>
             </div>
             <span

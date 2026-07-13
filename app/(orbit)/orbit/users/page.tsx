@@ -1,8 +1,15 @@
 import { desc } from "drizzle-orm";
 import { OrbitPageHeader } from "@/components/admin/orbit-page-header";
+import { LocalDateTime } from "@/components/common/local-datetime";
 import { UserBanForm, UserRoleForm } from "@/components/orbit/user-actions";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -14,7 +21,6 @@ import {
 import { ADMIN_ROLE } from "@/config/platform";
 import { user } from "@/db/schema";
 import { db } from "@/lib/db";
-import { formatDateTime } from "@/lib/utils";
 
 export const metadata = {
   title: "Users",
@@ -26,15 +32,17 @@ export default async function OrbitUsersPage() {
   return (
     <div>
       <OrbitPageHeader
+        description="Promote admins, disable accounts, and inspect basic account state."
         eyebrow="Admin"
         title="User Management"
-        description="Promote admins, disable accounts, and inspect basic account state."
       />
 
       <Card>
         <CardHeader>
           <CardTitle>Users</CardTitle>
-          <CardDescription>All registered accounts ordered by sign-up date.</CardDescription>
+          <CardDescription>
+            All registered accounts ordered by sign-up date.
+          </CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto p-0">
           <Table>
@@ -52,14 +60,14 @@ export default async function OrbitUsersPage() {
                 <TableRow key={item.id}>
                   <TableCell>
                     <div className="font-semibold">{item.email}</div>
-                    <div className="text-muted-foreground text-xs">{item.name}</div>
+                    <div className="text-muted-foreground text-xs">
+                      {item.name}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Badge
                       className={
-                        item.role === ADMIN_ROLE
-                          ? "text-success"
-                          : undefined
+                        item.role === ADMIN_ROLE ? "text-success" : undefined
                       }
                       variant={
                         item.role === ADMIN_ROLE ? "default" : "secondary"
@@ -76,7 +84,9 @@ export default async function OrbitUsersPage() {
                       {item.banned ? "banned" : "active"}
                     </Badge>
                   </TableCell>
-                  <TableCell>{formatDateTime(item.createdAt)}</TableCell>
+                  <TableCell>
+                    <LocalDateTime date={item.createdAt} />
+                  </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-2">
                       <UserRoleForm role={item.role} userId={item.id} />

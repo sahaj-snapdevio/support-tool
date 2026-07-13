@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TicketDetailRealtime } from "@/components/agent/ticket-detail-realtime";
 import { DeletableTicketAttachments } from "@/components/common/deletable-ticket-attachments";
+import { LocalDateTime } from "@/components/common/local-datetime";
 import { RichTextContent } from "@/components/common/rich-text-content";
 import { ScrollToBottomOnMount } from "@/components/common/scroll-to-bottom-on-mount";
 import { ADMIN_ROLE } from "@/config/platform";
@@ -23,7 +24,7 @@ import {
   getTicketPriorities,
   getTicketStatuses,
 } from "@/lib/ticket-config";
-import { COLOR_BADGE, formatTicketDateTime } from "@/lib/tickets";
+import { COLOR_BADGE } from "@/lib/tickets";
 import { getInitials } from "@/lib/utils";
 import { AgentReplyForm } from "./_components/agent-reply-form";
 import { TicketInfoSidebar } from "./_components/ticket-info-sidebar";
@@ -155,7 +156,7 @@ export default async function AgentTicketDetailPage({ params }: Props) {
                   </span>
                   <span className="text-muted-foreground text-xs">·</span>
                   <span className="text-xs text-muted-foreground">
-                    {formatTicketDateTime(ticket.createdAt)}
+                    <LocalDateTime date={ticket.createdAt} />
                   </span>
                 </div>
                 <h1 className="text-lg font-semibold text-foreground wrap-break-word">
@@ -182,7 +183,7 @@ export default async function AgentTicketDetailPage({ params }: Props) {
                 </span>
                 <span className="text-xs text-muted-foreground">Customer</span>
                 <span className="text-xs text-muted-foreground ml-auto shrink-0">
-                  {formatTicketDateTime(ticket.createdAt)}
+                  <LocalDateTime date={ticket.createdAt} />
                 </span>
               </div>
               <RichTextContent content={ticket.description} />
@@ -248,7 +249,7 @@ export default async function AgentTicketDetailPage({ params }: Props) {
                       </span>
                     )}
                     <span className="text-xs text-muted-foreground ml-auto shrink-0">
-                      {formatTicketDateTime(comment.createdAt)}
+                      <LocalDateTime date={comment.createdAt} />
                     </span>
                   </div>
                   <RichTextContent content={comment.content} />

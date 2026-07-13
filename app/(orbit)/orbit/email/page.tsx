@@ -1,7 +1,14 @@
 import { desc } from "drizzle-orm";
 import { OrbitPageHeader } from "@/components/admin/orbit-page-header";
+import { LocalDateTime } from "@/components/common/local-datetime";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -12,7 +19,6 @@ import {
 } from "@/components/ui/table";
 import { emailEvents, emailOutbox } from "@/db/schema";
 import { db } from "@/lib/db";
-import { formatDateTime } from "@/lib/utils";
 
 export const metadata = {
   title: "Email",
@@ -35,16 +41,18 @@ export default async function OrbitEmailPage() {
   return (
     <div>
       <OrbitPageHeader
+        description="Transactional email queue and inbound delivery events."
         eyebrow="Admin"
         title="Email"
-        description="Transactional email queue and inbound delivery events."
       />
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Outbox</CardTitle>
-            <CardDescription>Queued and delivered transactional emails.</CardDescription>
+            <CardDescription>
+              Queued and delivered transactional emails.
+            </CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto p-0">
             <Table>
@@ -83,7 +91,9 @@ export default async function OrbitEmailPage() {
         <Card>
           <CardHeader>
             <CardTitle>Events</CardTitle>
-            <CardDescription>Inbound webhook events from your SMTP provider.</CardDescription>
+            <CardDescription>
+              Inbound webhook events from your SMTP provider.
+            </CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto p-0">
             <Table>
@@ -99,7 +109,9 @@ export default async function OrbitEmailPage() {
                   <TableRow key={event.id}>
                     <TableCell>{event.eventType}</TableCell>
                     <TableCell>{event.recipient ?? "-"}</TableCell>
-                    <TableCell>{formatDateTime(event.receivedAt)}</TableCell>
+                    <TableCell>
+                      <LocalDateTime date={event.receivedAt} />
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

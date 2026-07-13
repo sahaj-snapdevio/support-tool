@@ -6,6 +6,7 @@ import {
 import { and, asc, desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { LocalDateTime } from "@/components/common/local-datetime";
 import { RichTextContent } from "@/components/common/rich-text-content";
 import { TicketAttachments } from "@/components/common/ticket-attachments";
 import { PRODUCT_NAME } from "@/config/platform";
@@ -28,16 +29,6 @@ import { TicketRealtime } from "./ticket-realtime";
 interface Props {
   params: Promise<{ ticketId: string }>;
   searchParams: Promise<{ token?: string }>;
-}
-
-function formatDate(date: Date) {
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 export default async function TicketDetailPage({
@@ -241,7 +232,7 @@ export default async function TicketDetailPage({
                 </h1>
                 <p className="text-xs text-stone mt-1">
                   Submitted by {ticket.customerName} ·{" "}
-                  {formatDate(ticket.createdAt)}
+                  <LocalDateTime date={ticket.createdAt} />
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -266,7 +257,7 @@ export default async function TicketDetailPage({
                 <div className="min-w-0">
                   <span className="text-sm font-medium text-bark">You</span>
                   <span className="text-xs text-stone ml-2">
-                    {formatDate(ticket.createdAt)}
+                    <LocalDateTime date={ticket.createdAt} />
                   </span>
                 </div>
                 <div className="size-7 rounded-full bg-bark text-cream flex items-center justify-center text-xs font-medium shrink-0 ml-auto">
@@ -323,7 +314,7 @@ export default async function TicketDetailPage({
                             {isAgent ? "Support Team" : "You"}
                           </span>
                           <span className="text-xs text-stone mx-2">
-                            {formatDate(comment.createdAt)}
+                            <LocalDateTime date={comment.createdAt} />
                           </span>
                         </div>
                         {!isAgent && (
@@ -388,7 +379,7 @@ export default async function TicketDetailPage({
                       <span className="size-1.5 rounded-full bg-sand shrink-0" />
                       <span>{label}</span>
                       <span className="ml-auto shrink-0">
-                        {formatDate(a.createdAt)}
+                        <LocalDateTime date={a.createdAt} />
                       </span>
                     </div>
                   );

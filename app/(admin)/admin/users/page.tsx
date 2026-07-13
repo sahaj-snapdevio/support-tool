@@ -1,16 +1,21 @@
-import { Suspense } from "react";
+import {
+  CaretLeftIcon,
+  CaretRightIcon,
+  UsersIcon,
+} from "@phosphor-icons/react/dist/ssr";
 import { count, ilike, or } from "drizzle-orm";
 import Link from "next/link";
-import { db } from "@/lib/db";
-import { user } from "@/db/schema";
-import { requireAdmin } from "@/lib/authz";
-import { ADMIN_ROLE } from "@/config/platform";
+import { Suspense } from "react";
+import { LocalDateTime } from "@/components/common/local-datetime";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { UserSearch } from "./_components/user-search";
-import { UserActions } from "./_components/user-actions";
+import { ADMIN_ROLE } from "@/config/platform";
+import { user } from "@/db/schema";
+import { requireAdmin } from "@/lib/authz";
+import { db } from "@/lib/db";
 import { InviteUserDialog } from "./_components/invite-user-dialog";
-import { UsersIcon, CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react/dist/ssr";
+import { UserActions } from "./_components/user-actions";
+import { UserSearch } from "./_components/user-search";
 
 type SearchParams = { q?: string; page?: string };
 
@@ -33,8 +38,8 @@ export default async function AdminUsersPage({ searchParams }: Props) {
       </div>
 
       {/* Re-suspends on search/pagination change (key = params) → skeleton shows. */}
-      <Suspense key={JSON.stringify(params)} fallback={<UsersTableSkeleton />}>
-        <UsersResults params={params} currentUserId={session.id} />
+      <Suspense fallback={<UsersTableSkeleton />} key={JSON.stringify(params)}>
+        <UsersResults currentUserId={session.id} params={params} />
       </Suspense>
     </div>
   );
@@ -48,7 +53,7 @@ async function UsersResults({
   currentUserId: string;
 }) {
   const search = (params.q ?? "").trim();
-  const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
+  const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
 
   const where = search
     ? or(ilike(user.name, `%${search}%`), ilike(user.email, `%${search}%`))
@@ -77,8 +82,12 @@ async function UsersResults({
 
   function buildPageUrl(p: number) {
     const qp = new URLSearchParams();
-    if (search) qp.set("q", search);
-    if (p > 1) qp.set("page", String(p));
+    if (search) {
+      qp.set("q", search);
+    }
+    if (p > 1) {
+      qp.set("page", String(p));
+    }
     const qs = qp.toString();
     return `/admin/users${qs ? `?${qs}` : ""}`;
   }
@@ -86,7 +95,7 @@ async function UsersResults({
   return (
     <>
       <p className="text-xs text-muted-foreground mb-3">
-        {total} registered user{total !== 1 ? "s" : ""}
+        {total} registered user{total === 1 ? "" : "s"}
       </p>
 
       {/* Table */}
@@ -94,9 +103,13 @@ async function UsersResults({
         {users.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <UsersIcon className="size-8 text-muted-foreground mb-3" />
-            <p className="text-sm font-medium text-foreground">No users found</p>
+            <p className="text-sm font-medium text-foreground">
+              No users found
+            </p>
             {search && (
-              <p className="text-xs text-muted-foreground mt-1">Try a different search term</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Try a different search term
+              </p>
             )}
           </div>
         ) : (
@@ -121,7 +134,10 @@ async function UsersResults({
               </thead>
               <tbody className="divide-y divide-border/50">
                 {users.map((u) => (
-                  <tr key={u.id} className="hover:bg-accent/30 transition-colors">
+                  <tr
+                    className="hover:bg-accent/30 transition-colors"
+                    key={u.id}
+                  >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="size-8 rounded-full bg-primary/10 border border-border flex items-center justify-center text-xs font-semibold text-foreground shrink-0">
@@ -131,7 +147,9 @@ async function UsersResults({
                           <p className="text-sm font-medium text-foreground truncate">
                             {u.name}
                           </p>
-                          <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {u.email}
+                          </p>
                           {u.banReason && (
                             <p className="text-xs text-red-500 truncate mt-0.5">
                               Ban reason: {u.banReason}
@@ -163,20 +181,16 @@ async function UsersResults({
                       </span>
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                      {u.createdAt.toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
+                      <LocalDateTime date={u.createdAt} mode="date" />
                     </td>
                     <td className="px-4 py-3">
                       <UserActions
+                        isCurrentUser={u.id === currentUserId}
+                        userBanned={u.banned}
+                        userEmail={u.email}
                         userId={u.id}
                         userName={u.name}
-                        userEmail={u.email}
                         userRole={u.role}
-                        userBanned={u.banned}
-                        isCurrentUser={u.id === currentUserId}
                       />
                     </td>
                   </tr>
@@ -197,9 +211,9 @@ async function UsersResults({
             {page > 1 && (
               <Link href={buildPageUrl(page - 1)}>
                 <Button
+                  className="h-8 gap-1 border-border text-foreground hover:bg-accent"
                   size="sm"
                   variant="outline"
-                  className="h-8 gap-1 border-border text-foreground hover:bg-accent"
                 >
                   <CaretLeftIcon className="size-3" />
                   Previous
@@ -209,9 +223,9 @@ async function UsersResults({
             {page < pageCount && (
               <Link href={buildPageUrl(page + 1)}>
                 <Button
+                  className="h-8 gap-1 border-border text-foreground hover:bg-accent"
                   size="sm"
                   variant="outline"
-                  className="h-8 gap-1 border-border text-foreground hover:bg-accent"
                 >
                   Next
                   <CaretRightIcon className="size-3" />
@@ -235,7 +249,7 @@ function UsersTableSkeleton() {
         </div>
         <div className="divide-y divide-border/50">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-4 px-4 py-3.5">
+            <div className="flex items-center gap-4 px-4 py-3.5" key={i}>
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <Skeleton className="size-8 rounded-full shrink-0" />
                 <div className="space-y-1.5 min-w-0">

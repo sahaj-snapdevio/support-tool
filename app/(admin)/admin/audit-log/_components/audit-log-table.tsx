@@ -2,13 +2,14 @@
 
 import { CaretDownIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { Fragment, useState } from "react";
+import { LocalDateTime } from "@/components/common/local-datetime";
 import { cn } from "@/lib/utils";
 import { getAuditActionLabel } from "./audit-log-actions";
 
 export interface AuditLogRow {
   action: string;
   actorEmail: string | null;
-  createdAtLabel: string;
+  createdAt: string; // ISO — rendered in the viewer's timezone
   description: string;
   entityId: string | null;
   entityType: string;
@@ -99,7 +100,7 @@ export function AuditLogTable({ rows }: { rows: AuditLogRow[] }) {
                       ))}
                   </td>
                   <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                    {row.createdAtLabel}
+                    <LocalDateTime date={row.createdAt} />
                   </td>
                   <td className="px-4 py-3 text-xs text-foreground truncate max-w-48">
                     {row.actorEmail ?? "System"}

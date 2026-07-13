@@ -90,13 +90,7 @@ async function AuditLogResults({ params }: { params: SearchParams }) {
   const tableRows = rows.map((r) => ({
     action: r.action,
     actorEmail: r.actorEmail,
-    createdAtLabel: r.createdAt.toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    }),
+    createdAt: r.createdAt.toISOString(),
     description: r.description,
     entityId: r.entityId,
     entityType: r.entityType,
