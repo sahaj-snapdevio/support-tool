@@ -1,3 +1,4 @@
+import { createId } from "@paralleldrive/cuid2";
 import { desc, eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -7,7 +8,15 @@ import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { htmlToRichTextJson, textToRichTextJson } from "@/lib/rich-text";
-import { createTicketFromSubmission } from "@/lib/tickets/create-ticket";
+import {
+  API_MAX_ATTACHMENTS_PER_TICKET,
+  decodeBase64Attachments,
+  uploadDecodedAttachments,
+} from "@/lib/tickets/api-attachments";
+import {
+  createTicketFromSubmission,
+  validateTicketSubmission,
+} from "@/lib/tickets/create-ticket";
 
 const LIST_LIMIT = 50;
 
@@ -79,6 +88,7 @@ export async function POST(request: NextRequest) {
     descriptionFormat?: string;
     category?: string;
     priority?: string;
+    attachments?: unknown;
   };
   try {
     body = await request.json();
@@ -96,7 +106,50 @@ export async function POST(request: NextRequest) {
       ? htmlToRichTextJson(rawDescription)
       : textToRichTextJson(rawDescription);
 
+  // A brand-new ticket has no attachments yet, so the full per-ticket cap is
+  // available. Decode/validate the files here, but only after the ticket
+  // fields themselves validate — files should never be uploaded for a
+  // submission that's going to be rejected anyway.
+  const decoded = decodeBase64Attachments(
+    body.attachments,
+    API_MAX_ATTACHMENTS_PER_TICKET
+  );
+  if (!decoded.ok) {
+    return NextResponse.json({ error: decoded.error }, { status: 400 });
+  }
+
+  const validated = await validateTicketSubmission({
+    name: String(body.name ?? ""),
+    email: String(body.email ?? ""),
+    subject: String(body.subject ?? ""),
+    description,
+    category: String(body.category ?? ""),
+    priority: body.priority ? String(body.priority) : undefined,
+  });
+  if (!validated.ok) {
+    return NextResponse.json(
+      { error: validated.error },
+      { status: validated.httpStatus }
+    );
+  }
+
+  const ticketId = createId();
+  let uploadedAttachments: Awaited<ReturnType<typeof uploadDecodedAttachments>>;
+  try {
+    uploadedAttachments = await uploadDecodedAttachments(
+      ticketId,
+      decoded.attachments
+    );
+  } catch (err) {
+    console.error("[POST /api/v1/tickets] attachment upload", err);
+    return NextResponse.json(
+      { error: "Failed to store attachments." },
+      { status: 500 }
+    );
+  }
+
   const result = await createTicketFromSubmission({
+    id: ticketId,
     name: String(body.name ?? ""),
     email: String(body.email ?? ""),
     subject: String(body.subject ?? ""),
@@ -106,6 +159,7 @@ export async function POST(request: NextRequest) {
     source: "api",
     apiKeyId: apiKey.id,
     apiKeyName: apiKey.name,
+    attachments: uploadedAttachments,
   });
 
   if (!result.ok) {
