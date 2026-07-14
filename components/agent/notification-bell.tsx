@@ -3,6 +3,7 @@
 import { BellIcon, TicketIcon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   Popover,
   PopoverContent,
@@ -114,9 +115,26 @@ export function NotificationBell({ userId }: { userId: string }) {
   }, [open, load]);
 
   async function markAllRead() {
+    const count = unread;
+    if (count === 0) {
+      return;
+    }
+    const previousItems = items;
     setItems((prev) => prev.map((n) => ({ ...n, isRead: true })));
     setUnread(0);
-    await fetch("/api/notifications/read", { method: "POST" }).catch(() => {});
+    try {
+      const res = await fetch("/api/notifications/read", { method: "POST" });
+      if (!res.ok) {
+        throw new Error("Failed to mark notifications as read.");
+      }
+      toast.success(
+        `${count} notification${count === 1 ? "" : "s"} marked as read.`
+      );
+    } catch {
+      setItems(previousItems);
+      setUnread(count);
+      toast.error("Failed to mark notifications as read.");
+    }
   }
 
   async function openNotification(n: Notification) {

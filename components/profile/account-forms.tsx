@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import {
   type ActionState,
   changeEmailAction,
@@ -8,13 +8,6 @@ import {
   updateNameAction,
 } from "@/app/actions/profile";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 const initialState: ActionState = {};
@@ -22,14 +15,14 @@ const initialState: ActionState = {};
 function ActionMessage({ state }: { state: ActionState }) {
   if (state.error) {
     return (
-      <p className="rounded-none bg-destructive/10 p-3 text-destructive text-sm">
+      <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
         {state.error}
       </p>
     );
   }
   if (state.success) {
     return (
-      <p className="rounded-none bg-success-subtle p-3 text-success-foreground text-sm">
+      <p className="rounded-md bg-success-subtle px-3 py-2 text-sm text-success-foreground">
         {state.success}
       </p>
     );
@@ -53,64 +46,96 @@ export function AccountIdentityForms({
     initialState
   );
 
+  const [nameValue, setNameValue] = useState(name);
+  const [savedName, setSavedName] = useState(name);
+  // useActionState gives back a NEW state object exactly once per completed
+  // submission — using it (not .success) as the effect dependency means this
+  // only fires right after a save, never while the user keeps typing.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: nameValue is read at the moment nameState changes, not tracked continuously — see comment above.
+  useEffect(() => {
+    if (nameState.success) {
+      setSavedName(nameValue);
+    }
+  }, [nameState]);
+  const nameChanged = nameValue.trim() !== savedName.trim();
+
+  const [emailValue, setEmailValue] = useState(email);
+  const [savedEmail, setSavedEmail] = useState(email);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: same as above, keyed on emailState.
+  useEffect(() => {
+    if (emailState.success) {
+      setSavedEmail(emailValue);
+    }
+  }, [emailState]);
+  const emailChanged =
+    emailValue.trim().toLowerCase() !== savedEmail.trim().toLowerCase();
+
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>Display Name</CardTitle>
-          <CardDescription>
-            The name shown in navigation, audit logs, and admin views.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form action={nameAction} className="space-y-4">
-            <label className="block" htmlFor="name">
-              <span className="mb-2 block font-semibold text-foreground text-sm">
-                Name
-              </span>
-              <Input
-                defaultValue={name}
-                id="name"
-                maxLength={100}
-                name="name"
-              />
-            </label>
-            <ActionMessage state={nameState} />
-            <Button disabled={namePending} type="submit">
-              {namePending ? "Saving..." : "Save name"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+      <div className="bg-card rounded-xl border border-border shadow-soft p-6 space-y-4">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">
+            Display Name
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Shown in navigation, audit logs, and admin views.
+          </p>
+        </div>
+        <form action={nameAction} className="space-y-3">
+          <label className="block" htmlFor="name">
+            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+              Name
+            </span>
+            <Input
+              id="name"
+              maxLength={100}
+              name="name"
+              onChange={(e) => setNameValue(e.target.value)}
+              value={nameValue}
+            />
+          </label>
+          <ActionMessage state={nameState} />
+          <Button
+            disabled={namePending || !nameChanged || !nameValue.trim()}
+            type="submit"
+          >
+            {namePending ? "Saving…" : "Save name"}
+          </Button>
+        </form>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Email Address</CardTitle>
-          <CardDescription>
-            Magic-link authentication uses this email as the account identity.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form action={emailAction} className="space-y-4">
-            <label className="block" htmlFor="email">
-              <span className="mb-2 block font-semibold text-foreground text-sm">
-                Email
-              </span>
-              <Input
-                defaultValue={email}
-                id="email"
-                name="email"
-                required
-                type="email"
-              />
-            </label>
-            <ActionMessage state={emailState} />
-            <Button disabled={emailPending} type="submit">
-              {emailPending ? "Saving..." : "Update email"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+      <div className="bg-card rounded-xl border border-border shadow-soft p-6 space-y-4">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">
+            Email Address
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Password and magic-link sign-in both use this address.
+          </p>
+        </div>
+        <form action={emailAction} className="space-y-3">
+          <label className="block" htmlFor="email">
+            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+              Email
+            </span>
+            <Input
+              id="email"
+              name="email"
+              onChange={(e) => setEmailValue(e.target.value)}
+              required
+              type="email"
+              value={emailValue}
+            />
+          </label>
+          <ActionMessage state={emailState} />
+          <Button
+            disabled={emailPending || !emailChanged || !emailValue.trim()}
+            type="submit"
+          >
+            {emailPending ? "Saving…" : "Update email"}
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }
@@ -120,35 +145,41 @@ export function DeleteAccountForm({ email }: { email: string }) {
     deleteAccountAction,
     initialState
   );
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const confirmed = confirmEmail.trim().toLowerCase() === email.toLowerCase();
 
   return (
-    <Card className="border-destructive/30">
-      <CardHeader>
-        <CardTitle className="text-destructive">Delete Account</CardTitle>
-        <CardDescription>
-          Permanently delete your user, sessions, and linked auth accounts.
-          Audit records remain for operator history.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form action={action} className="space-y-4">
-          <label className="block" htmlFor="confirmEmail">
-            <span className="mb-2 block font-semibold text-foreground text-sm">
-              Type your email to confirm
-            </span>
-            <Input
-              autoComplete="off"
-              id="confirmEmail"
-              name="confirmEmail"
-              placeholder={email}
-            />
-          </label>
-          <ActionMessage state={state} />
-          <Button disabled={pending} type="submit" variant="destructive">
-            {pending ? "Deleting..." : "Delete my account"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+    <div className="bg-card rounded-xl border border-red-200 shadow-soft p-6 space-y-4">
+      <div>
+        <h2 className="text-base font-semibold text-red-600">Delete Account</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Permanently delete your user, sessions, and linked sign-in methods.
+          Audit records remain for operator history. This can&apos;t be undone.
+        </p>
+      </div>
+      <form action={action} className="space-y-3">
+        <label className="block" htmlFor="confirmEmail">
+          <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+            Type your email to confirm
+          </span>
+          <Input
+            autoComplete="off"
+            id="confirmEmail"
+            name="confirmEmail"
+            onChange={(e) => setConfirmEmail(e.target.value)}
+            placeholder={email}
+            value={confirmEmail}
+          />
+        </label>
+        <ActionMessage state={state} />
+        <Button
+          disabled={pending || !confirmed}
+          type="submit"
+          variant="destructive"
+        >
+          {pending ? "Deleting…" : "Delete my account"}
+        </Button>
+      </form>
+    </div>
   );
 }

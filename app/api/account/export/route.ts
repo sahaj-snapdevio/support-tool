@@ -1,10 +1,10 @@
 import { desc, eq } from "drizzle-orm";
-import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { account, auditLogs, session as sessionTable, user } from "@/db/schema";
 import { audit } from "@/lib/audit";
-import { db } from "@/lib/db";
 import { getSessionUserFromRequest } from "@/lib/authz";
+import { db } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   const current = getSessionUserFromRequest(request);
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
     })),
   };
 
-  const filename = `krova-account-export-${current.email.replace(/[^a-z0-9]/gi, "_")}-${new Date().toISOString().slice(0, 10)}.json`;
+  const filename = `support-tool-account-export-${current.email.replace(/[^a-z0-9]/gi, "_")}-${new Date().toISOString().slice(0, 10)}.json`;
 
   return new NextResponse(JSON.stringify(payload, null, 2), {
     headers: {

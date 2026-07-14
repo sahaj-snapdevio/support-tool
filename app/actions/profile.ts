@@ -1,12 +1,14 @@
 "use server";
 
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { and, count, eq, inArray, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { ADMIN_ROLE } from "@/config/platform";
 import { account, session as sessionTable, user } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { requireSession } from "@/lib/authz";
 import { db } from "@/lib/db";
+import { createPasswordSetupToken } from "@/lib/password-setup-token";
 
 export interface ActionState {
   error?: string;
@@ -94,6 +96,19 @@ export async function changeEmailAction(
   return { success: "Email updated. Use the new email for future sign-ins." };
 }
 
+/**
+ * For a user with no `credential` account yet (invited via magic link,
+ * signed in with Google only, etc.) — mints the same token the invite email
+ * uses and sends them to Better Auth's own reset-password flow to set an
+ * initial password. No email round-trip needed: they're already
+ * authenticated, proving who they are, so we can redirect them directly.
+ */
+export async function requestPasswordSetupAction(): Promise<never> {
+  const session = await requireSession();
+  const token = await createPasswordSetupToken(session.user.id);
+  redirect(`/reset-password?token=${token}`);
+}
+
 export async function revokeSessionAction(formData: FormData): Promise<void> {
   const current = await requireSession();
   const sessionId = String(formData.get("sessionId") ?? "");
@@ -179,6 +194,21 @@ export async function deleteAccountAction(
 
   if (confirmEmail !== freshUser.email.toLowerCase()) {
     return { error: "Type your email address to confirm deletion." };
+  }
+
+  // The sole admin deleting themselves would leave the instance with no one
+  // able to reach /admin — mirrors the same guard on demoting the last admin.
+  if (current.user.role === ADMIN_ROLE) {
+    const [{ total: adminCount }] = await db
+      .select({ total: count() })
+      .from(user)
+      .where(eq(user.role, ADMIN_ROLE));
+    if (Number(adminCount) <= 1) {
+      return {
+        error:
+          "You're the only admin — promote another user to admin before deleting your account.",
+      };
+    }
   }
 
   await audit({

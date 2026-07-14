@@ -2,24 +2,8 @@ import {
   revokeSessionAction,
   signOutOtherSessionsAction,
 } from "@/app/actions/profile";
-import { Badge } from "@/components/ui/badge";
+import { LocalDateTime } from "@/components/common/local-datetime";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { formatDateTime } from "@/lib/utils";
 
 export interface SessionRow {
   createdAt: string;
@@ -36,61 +20,80 @@ export function SessionsCard({ sessions }: { sessions: SessionRow[] }) {
   ).length;
 
   return (
-    <Card>
-      <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="bg-card rounded-xl border border-border shadow-soft overflow-hidden">
+      <div className="p-6 pb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <CardTitle>Active Sessions</CardTitle>
-          <CardDescription>
-            Review signed-in devices and revoke anything you do not recognize.
-          </CardDescription>
+          <h2 className="text-base font-semibold text-foreground">
+            Active Sessions
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Review signed-in devices and revoke anything you don&apos;t
+            recognize.
+          </p>
         </div>
         {otherSessionCount > 0 && (
           <form action={signOutOtherSessionsAction}>
-            <Button type="submit" variant="secondary" size="sm">
+            <Button size="sm" type="submit" variant="outline">
               Sign out other sessions
             </Button>
           </form>
         )}
-      </CardHeader>
-      <CardContent className="overflow-x-auto p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Session</TableHead>
-              <TableHead>IP</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead>Expires</TableHead>
-              <TableHead>Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-t border-b border-border bg-accent/50">
+              <th className="text-left px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Session
+              </th>
+              <th className="text-left px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                IP
+              </th>
+              <th className="text-left px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Created
+              </th>
+              <th className="text-left px-6 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Expires
+              </th>
+              <th className="px-6 py-3" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/50">
             {sessions.map((session) => (
-              <TableRow key={session.id}>
-                <TableCell>
+              <tr
+                className="hover:bg-accent/30 transition-colors"
+                key={session.id}
+              >
+                <td className="px-6 py-3">
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold">
+                      <span className="font-medium text-foreground">
                         {session.userAgent
                           ? describeUserAgent(session.userAgent)
                           : "Unknown device"}
                       </span>
                       {session.isCurrent && (
-                        <Badge className="text-success">Current</Badge>
+                        <span className="inline-flex items-center rounded border border-green-200 bg-green-50 px-1.5 py-0.5 text-2xs font-medium text-green-700">
+                          Current
+                        </span>
                       )}
                     </div>
-                    <span className="max-w-md truncate text-muted-foreground text-xs">
-                      {session.userAgent ?? "No user agent recorded"}
-                    </span>
                   </div>
-                </TableCell>
-                <TableCell className="font-mono text-xs">
-                  {session.ipAddress ?? "-"}
-                </TableCell>
-                <TableCell>{formatDateTime(session.createdAt)}</TableCell>
-                <TableCell>{formatDateTime(session.expiresAt)}</TableCell>
-                <TableCell>
+                </td>
+                <td className="px-6 py-3 font-mono text-xs text-muted-foreground">
+                  {session.ipAddress ?? "—"}
+                </td>
+                <td className="px-6 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                  <LocalDateTime date={session.createdAt} />
+                </td>
+                <td className="px-6 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                  <LocalDateTime date={session.expiresAt} />
+                </td>
+                <td className="px-6 py-3 text-right">
                   {session.isCurrent ? (
-                    <span className="text-muted-foreground text-sm">Protected</span>
+                    <span className="text-xs text-muted-foreground">
+                      Protected
+                    </span>
                   ) : (
                     <form action={revokeSessionAction}>
                       <input
@@ -98,18 +101,18 @@ export function SessionsCard({ sessions }: { sessions: SessionRow[] }) {
                         type="hidden"
                         value={session.id}
                       />
-                      <Button type="submit" variant="secondary" size="sm">
+                      <Button size="sm" type="submit" variant="outline">
                         Revoke
                       </Button>
                     </form>
                   )}
-                </TableCell>
-              </TableRow>
+                </td>
+              </tr>
             ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 

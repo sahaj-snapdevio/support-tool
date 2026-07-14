@@ -119,9 +119,12 @@ export function AgentSidebar({
         )}
       </nav>
 
-      {/* Agent info */}
+      {/* Agent info — links to the profile page */}
       <div className="px-3 py-3 border-t border-sidebar-border">
-        <div className="flex items-center gap-2.5 rounded-md bg-sidebar-accent/40 px-2.5 py-2">
+        <Link
+          className="flex items-center gap-2.5 rounded-md bg-sidebar-accent/40 px-2.5 py-2 transition-colors hover:bg-sidebar-accent/70"
+          href="/dashboard/profile"
+        >
           <div className="size-8 rounded-full bg-sidebar-primary flex items-center justify-center shrink-0">
             <span className="text-2xs font-semibold text-sidebar-primary-foreground">
               {getInitials(userName)}
@@ -138,7 +141,7 @@ export function AgentSidebar({
           {isAdmin && (
             <ShieldCheckIcon className="size-3.5 text-sidebar-foreground shrink-0" />
           )}
-        </div>
+        </Link>
         <SignOutButton />
       </div>
     </aside>
