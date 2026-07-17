@@ -88,3 +88,26 @@ Build the worker image separately:
 ```bash
 docker build -f Dockerfile.worker -t support-tool-worker .
 ```
+
+---
+
+## Migrating from Zammad
+
+Two one-off, idempotent scripts (safe to re-run — already-migrated data is skipped,
+never duplicated). Run `migrate:zammad` first, then `migrate:zammad:users`; each
+script's own header comment has the full details.
+
+```bash
+# 1) Tickets, comments, attachments, tags — see scripts/migrate-zammad.ts
+ZAMMAD_BASE_URL=... ZAMMAD_API_TOKEN=... pnpm migrate:zammad
+
+# 2) Agent/admin accounts — creates a Support Tool user (as a plain agent) for
+#    every Zammad Agent/Admin, all sharing one default password, and connects
+#    historical replies/attachments to the new accounts by author name.
+#    See scripts/migrate-zammad-users.ts.
+ZAMMAD_BASE_URL=... ZAMMAD_API_TOKEN=... pnpm migrate:zammad:users
+```
+
+Both accept `MIGRATION_DRY_RUN=1` to preview without writing. The user-migration
+script's shared default password is `debutify@123456` unless overridden via
+`MIGRATION_USER_PASSWORD` — tell the team to change it after first login.
