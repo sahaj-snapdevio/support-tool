@@ -11,3 +11,4 @@ export * from "@/db/schema/notifications";
 export * from "@/db/schema/rate-limit";
 export * from "@/db/schema/canned-responses";
 export * from "@/db/schema/tags";
+export * from "@/db/schema/user-preferences";

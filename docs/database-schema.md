@@ -257,6 +257,17 @@ Indexes:
 - tag_id
 ```
 
+### `user_ticket_table_prefs`
+
+Per-agent/admin display preferences for the `/tickets` table — which columns are shown and in what order. One row per user, not shared.
+
+```
+user_ticket_table_prefs
+├── user_id            text PK → user.id (CASCADE DELETE)
+├── columns            jsonb NOT NULL   ← ColumnPref[]: [{ id: "status", visible: true }, ...] in display order
+└── updated_at         timestamp with time zone NOT NULL DEFAULT NOW()
+```
+
 ---
 
 ## Scaffold Tables (already exist)
@@ -280,6 +291,7 @@ db/schema/
 ├── tickets.ts         ← tickets, ticket_comments, ticket_attachments, ticket_activity
 ├── ticket-config.ts   ← ticket_statuses, ticket_categories, ticket_priorities
 ├── tags.ts            ← tags, ticket_tags
+├── user-preferences.ts ← user_ticket_table_prefs
 ├── api-keys.ts        ← api_keys
 ├── settings.ts        ← platform_settings
 ├── audit-logs.ts      ← audit_logs (scaffold)

@@ -1,5 +1,5 @@
 import { createId } from "@paralleldrive/cuid2";
-import { asc, eq, ilike } from "drizzle-orm";
+import { asc, eq, ilike, inArray } from "drizzle-orm";
 import { tags, ticketTags } from "@/db/schema";
 import { db } from "@/lib/db";
 
@@ -50,6 +50,30 @@ export async function getTicketTags(
     .innerJoin(tags, eq(ticketTags.tagId, tags.id))
     .where(eq(ticketTags.ticketId, ticketId))
     .orderBy(asc(tags.name));
+}
+
+/** Bulk sibling of getTicketTags — for rendering a Tags column across a page of tickets. */
+export async function getTicketTagsForTickets(
+  ticketIds: string[]
+): Promise<Record<string, string[]>> {
+  if (ticketIds.length === 0) {
+    return {};
+  }
+  const rows = await db
+    .select({ ticketId: ticketTags.ticketId, name: tags.name })
+    .from(ticketTags)
+    .innerJoin(tags, eq(ticketTags.tagId, tags.id))
+    .where(inArray(ticketTags.ticketId, ticketIds))
+    .orderBy(asc(tags.name));
+
+  const byTicket: Record<string, string[]> = {};
+  for (const row of rows) {
+    if (!byTicket[row.ticketId]) {
+      byTicket[row.ticketId] = [];
+    }
+    byTicket[row.ticketId].push(row.name);
+  }
+  return byTicket;
 }
 
 /** Autocomplete search across the shared tag pool. */

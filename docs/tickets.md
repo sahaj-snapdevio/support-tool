@@ -89,7 +89,7 @@ Tags are **freeform** — any agent can type a new tag on a ticket; it's created
 - `POST /api/tickets/{id}/tags` (body `{ name }`) and `DELETE /api/tickets/{id}/tags/{tagId}` — both agent/admin only.
 - `GET /api/tags?q=…` — autocomplete search across the shared pool.
 - Adding/removing a tag logs a `tag_added`/`tag_removed` row in `ticket_activity`.
-- Not currently filterable on the ticket list page (detail-page-only for now).
+- Also shown as a (customizable, non-filterable) column on the ticket list — see [Ticket List Columns](#ticket-list-columns).
 
 ---
 
@@ -99,6 +99,20 @@ Tags are **freeform** — any agent can type a new tag on a ticket; it's created
 - Always displayed with a `#` prefix in the UI: `#1001`.
 - Used for searching — agents can search by ticket number.
 - Never editable.
+
+---
+
+## Ticket List Columns
+
+Each agent/admin can customize their own `/tickets` table — which columns are shown and in what order —
+from the "Columns" button above the table. Checkbox, `#`, and Subject are always pinned first; the rest
+(Status, Category, Priority, Customer, Assigned, Tags, Updated By, Updated) are toggle/reorderable.
+
+- Persisted per user in `user_ticket_table_prefs` (`columns` jsonb — visibility + order), via
+  `PATCH /api/tickets/table-columns`. Not shared across agents.
+- **Tags** — the ticket's tags, read-only in this view (manage them from the ticket detail sidebar).
+- **Updated By** — the most recent **agent/admin** actor from `ticket_activity` for that ticket (customer
+  activity is excluded); shows "—" if no agent/admin has touched it yet.
 
 ---
 

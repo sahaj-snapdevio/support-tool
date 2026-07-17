@@ -16,6 +16,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { TicketPriority, TicketStatus } from "@/lib/ticket-config";
+import {
+  type ColumnPref,
+  CUSTOMIZABLE_COLUMNS,
+} from "@/lib/tickets-table-columns";
 import { TicketRow } from "./ticket-row";
 
 interface Row {
@@ -27,9 +31,15 @@ interface Row {
   priority: string;
   status: string;
   subject: string;
+  tags: string[];
   ticketNumber: number;
   updatedAt: Date;
+  updatedByName: string | null;
 }
+
+const COLUMN_META = Object.fromEntries(
+  CUSTOMIZABLE_COLUMNS.map((c) => [c.id, c])
+);
 
 interface Agent {
   email: string;
@@ -51,6 +61,7 @@ export function TicketsTable({
   priorities,
   agents,
   isAdmin,
+  columnPrefs,
 }: {
   rows: Row[];
   statusMap: Record<string, ColorRow | undefined>;
@@ -60,7 +71,9 @@ export function TicketsTable({
   priorities: TicketPriority[];
   agents: Agent[];
   isAdmin: boolean;
+  columnPrefs: ColumnPref[];
 }) {
+  const visibleColumns = columnPrefs.filter((c) => c.visible);
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -216,27 +229,17 @@ export function TicketsTable({
                 <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide w-16">
                   #
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide w-56">
                   Subject
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide w-36 hidden sm:table-cell">
-                  Status
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide w-36 hidden md:table-cell">
-                  Category
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide w-32 hidden md:table-cell">
-                  Priority
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide w-40 hidden lg:table-cell">
-                  Customer
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide w-36 hidden lg:table-cell">
-                  Assigned
-                </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide w-28 hidden xl:table-cell">
-                  Updated
-                </th>
+                {visibleColumns.map((c) => (
+                  <th
+                    className={`text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide ${COLUMN_META[c.id].width}`}
+                    key={c.id}
+                  >
+                    {COLUMN_META[c.id].label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
@@ -253,6 +256,7 @@ export function TicketsTable({
                   selected={selected.has(row.id)}
                   statuses={statuses}
                   statusMap={statusMap}
+                  visibleColumns={visibleColumns}
                 />
               ))}
             </tbody>

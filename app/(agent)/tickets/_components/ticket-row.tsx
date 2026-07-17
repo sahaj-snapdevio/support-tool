@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import type { TicketPriority, TicketStatus } from "@/lib/ticket-config";
 import { COLOR_BADGE, formatTicketDate } from "@/lib/tickets";
+import type { ColumnPref } from "@/lib/tickets-table-columns";
 
 interface Row {
   assignedAgentId: string | null;
@@ -27,8 +28,10 @@ interface Row {
   priority: string;
   status: string;
   subject: string;
+  tags: string[];
   ticketNumber: number;
   updatedAt: Date;
+  updatedByName: string | null;
 }
 
 interface Agent {
@@ -53,6 +56,7 @@ interface Props {
   selected: boolean;
   statuses: TicketStatus[];
   statusMap: Record<string, ColorRow | undefined>;
+  visibleColumns: ColumnPref[];
 }
 
 export function TicketRow({
@@ -66,6 +70,7 @@ export function TicketRow({
   isAdmin,
   selected,
   onToggleSelect,
+  visibleColumns,
 }: Props) {
   const router = useRouter();
   const [status, setStatus] = useState(row.status);
@@ -156,6 +161,104 @@ export function TicketRow({
     }
   }
 
+  function renderCell(columnId: ColumnPref["id"]) {
+    switch (columnId) {
+      case "status":
+        return (
+          <SearchableSelect
+            compact
+            disabled={loading}
+            onValueChange={handleStatusChange}
+            options={statuses.map((s) => ({ value: s.slug, label: s.label }))}
+            searchPlaceholder="Search status…"
+            triggerClassName={`h-7 w-full text-xs border ${COLOR_BADGE[statusMap[status]?.color ?? "slate"] ?? "border-border"}`}
+            value={status}
+          />
+        );
+      case "category":
+        return (
+          <span
+            className={`inline-flex items-center whitespace-nowrap rounded border px-2 py-0.5 text-xs font-medium ${COLOR_BADGE[categoryMap[row.category]?.color ?? "slate"] ?? ""}`}
+          >
+            {categoryMap[row.category]?.label ?? row.category}
+          </span>
+        );
+      case "priority":
+        return (
+          <SearchableSelect
+            compact
+            disabled={loading}
+            onValueChange={handlePriorityChange}
+            options={priorities.map((p) => ({
+              value: p.slug,
+              label: p.label,
+            }))}
+            searchPlaceholder="Search priority…"
+            triggerClassName={`h-7 w-full text-xs border ${COLOR_BADGE[priorityMap[priority]?.color ?? "slate"] ?? "border-border"}`}
+            value={priority}
+          />
+        );
+      case "customer":
+        return (
+          <span
+            className="block max-w-36 truncate text-muted-foreground text-xs"
+            title={row.customerName}
+          >
+            {row.customerName}
+          </span>
+        );
+      case "assigned":
+        return (
+          <SearchableSelect
+            compact
+            disabled={loading}
+            onValueChange={handleAssignChange}
+            options={[
+              { value: "unassigned", label: "Unassigned" },
+              ...agents.map((a) => ({ value: a.id, label: a.name ?? a.email })),
+            ]}
+            searchPlaceholder="Search agents…"
+            triggerClassName="h-7 w-full text-xs"
+            value={assignedAgentId ?? "unassigned"}
+          />
+        );
+      case "tags":
+        return row.tags.length === 0 ? (
+          <span className="text-muted-foreground text-xs">—</span>
+        ) : (
+          <div className="flex flex-wrap gap-1">
+            {row.tags.slice(0, 2).map((tag) => (
+              <span
+                className="inline-flex items-center whitespace-nowrap rounded border border-border bg-accent px-1.5 py-0.5 text-xs font-medium text-foreground"
+                key={tag}
+              >
+                {tag}
+              </span>
+            ))}
+            {row.tags.length > 2 && (
+              <span className="text-muted-foreground text-xs">
+                +{row.tags.length - 2}
+              </span>
+            )}
+          </div>
+        );
+      case "updatedBy":
+        return (
+          <span className="text-muted-foreground text-xs">
+            {row.updatedByName ?? "—"}
+          </span>
+        );
+      case "updatedAt":
+        return (
+          <span className="text-muted-foreground text-xs whitespace-nowrap">
+            {formatTicketDate(row.updatedAt)}
+          </span>
+        );
+      default:
+        return null;
+    }
+  }
+
   return (
     <>
       <tr
@@ -179,72 +282,12 @@ export function TicketRow({
           >
             {row.subject}
           </Link>
-          {/* Mobile: show status inline (read-only — edit from the ticket page) */}
-          <div className="flex gap-1.5 mt-1 sm:hidden">
-            <span
-              className={`inline-flex items-center whitespace-nowrap rounded border px-1.5 py-0.5 text-xs font-medium ${COLOR_BADGE[statusMap[row.status]?.color ?? "slate"] ?? ""}`}
-            >
-              {statusMap[row.status]?.label ?? row.status}
-            </span>
-          </div>
         </td>
-        <td className="px-4 py-3 hidden sm:table-cell">
-          <SearchableSelect
-            compact
-            disabled={loading}
-            onValueChange={handleStatusChange}
-            options={statuses.map((s) => ({ value: s.slug, label: s.label }))}
-            searchPlaceholder="Search status…"
-            triggerClassName={`h-7 w-full text-xs border ${COLOR_BADGE[statusMap[status]?.color ?? "slate"] ?? "border-border"}`}
-            value={status}
-          />
-        </td>
-        <td className="px-4 py-3 hidden md:table-cell">
-          <span
-            className={`inline-flex items-center whitespace-nowrap rounded border px-2 py-0.5 text-xs font-medium ${COLOR_BADGE[categoryMap[row.category]?.color ?? "slate"] ?? ""}`}
-          >
-            {categoryMap[row.category]?.label ?? row.category}
-          </span>
-        </td>
-        <td className="px-4 py-3 hidden md:table-cell">
-          <SearchableSelect
-            compact
-            disabled={loading}
-            onValueChange={handlePriorityChange}
-            options={priorities.map((p) => ({
-              value: p.slug,
-              label: p.label,
-            }))}
-            searchPlaceholder="Search priority…"
-            triggerClassName={`h-7 w-full text-xs border ${COLOR_BADGE[priorityMap[priority]?.color ?? "slate"] ?? "border-border"}`}
-            value={priority}
-          />
-        </td>
-        <td className="px-4 py-3 hidden lg:table-cell">
-          <span
-            className="block max-w-36 truncate text-muted-foreground text-xs"
-            title={row.customerName}
-          >
-            {row.customerName}
-          </span>
-        </td>
-        <td className="px-4 py-3 hidden lg:table-cell">
-          <SearchableSelect
-            compact
-            disabled={loading}
-            onValueChange={handleAssignChange}
-            options={[
-              { value: "unassigned", label: "Unassigned" },
-              ...agents.map((a) => ({ value: a.id, label: a.name ?? a.email })),
-            ]}
-            searchPlaceholder="Search agents…"
-            triggerClassName="h-7 w-full text-xs"
-            value={assignedAgentId ?? "unassigned"}
-          />
-        </td>
-        <td className="px-4 py-3 text-muted-foreground text-xs hidden xl:table-cell whitespace-nowrap">
-          {formatTicketDate(row.updatedAt)}
-        </td>
+        {visibleColumns.map((c) => (
+          <td className="px-4 py-3" key={c.id}>
+            {renderCell(c.id)}
+          </td>
+        ))}
       </tr>
 
       {/* Close confirmation — moving to a closed status notifies the customer */}

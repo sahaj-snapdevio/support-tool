@@ -20,9 +20,10 @@ import { TicketsListRealtime } from "@/components/agent/tickets-list-realtime";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ADMIN_ROLE, AGENT_ROLE } from "@/config/platform";
 import { user } from "@/db/schema/auth";
-import { tickets } from "@/db/schema/tickets";
+import { ticketActivity, tickets } from "@/db/schema/tickets";
 import { requireAgent } from "@/lib/authz";
 import { db } from "@/lib/db";
+import { getTicketTagsForTickets } from "@/lib/tags";
 import {
   getTicketCategories,
   getTicketPriorities,
@@ -31,7 +32,10 @@ import {
   type TicketPriority,
   type TicketStatus,
 } from "@/lib/ticket-config";
+import type { ColumnPref } from "@/lib/tickets-table-columns";
+import { getTicketTableColumnPrefs } from "@/lib/user-preferences";
 import { cn } from "@/lib/utils";
+import { ColumnSettingsDialog } from "./_components/column-settings-dialog";
 import { GoToPage } from "./_components/go-to-page";
 import { PAGE_SIZE_OPTIONS } from "./_components/page-size-options";
 import { PageSizeSelect } from "./_components/page-size-select";
@@ -128,11 +132,12 @@ interface Props {
 export default async function TicketsPage({ searchParams }: Props) {
   const params = await searchParams;
 
-  const [session, statuses, categories, priorities] = await Promise.all([
-    requireAgent(),
+  const session = await requireAgent();
+  const [statuses, categories, priorities, columnPrefs] = await Promise.all([
     getTicketStatuses(),
     getTicketCategories(),
     getTicketPriorities(),
+    getTicketTableColumnPrefs(session.id),
   ]);
 
   return (
@@ -153,6 +158,7 @@ export default async function TicketsPage({ searchParams }: Props) {
         <TicketsResults
           agentId={session.id}
           categories={categories}
+          columnPrefs={columnPrefs}
           isAdmin={session.role === ADMIN_ROLE}
           params={params}
           priorities={priorities}
@@ -170,6 +176,7 @@ async function TicketsResults({
   statuses,
   categories,
   priorities,
+  columnPrefs,
 }: {
   params: SearchParams;
   agentId: string;
@@ -177,6 +184,7 @@ async function TicketsResults({
   statuses: TicketStatus[];
   categories: TicketCategory[];
   priorities: TicketPriority[];
+  columnPrefs: ColumnPref[];
 }) {
   const statusMap = Object.fromEntries(statuses.map((s) => [s.slug, s]));
   const categoryMap = Object.fromEntries(categories.map((c) => [c.slug, c]));
@@ -286,6 +294,41 @@ async function TicketsResults({
     .limit(pageSize)
     .offset((page - 1) * pageSize);
 
+  const visibleColumnIds = new Set(
+    columnPrefs.filter((c) => c.visible).map((c) => c.id)
+  );
+  const ticketIds = rows.map((r) => r.id);
+
+  const [tagsByTicket, updatedByRows] = await Promise.all([
+    visibleColumnIds.has("tags")
+      ? getTicketTagsForTickets(ticketIds)
+      : Promise.resolve({} as Record<string, string[]>),
+    visibleColumnIds.has("updatedBy") && ticketIds.length > 0
+      ? db
+          .selectDistinctOn([ticketActivity.ticketId], {
+            ticketId: ticketActivity.ticketId,
+            actorName: ticketActivity.actorName,
+          })
+          .from(ticketActivity)
+          .where(
+            and(
+              inArray(ticketActivity.ticketId, ticketIds),
+              inArray(ticketActivity.actorRole, [AGENT_ROLE, ADMIN_ROLE])
+            )
+          )
+          .orderBy(ticketActivity.ticketId, desc(ticketActivity.createdAt))
+      : Promise.resolve([]),
+  ]);
+  const updatedByTicket = Object.fromEntries(
+    updatedByRows.map((r) => [r.ticketId, r.actorName])
+  );
+
+  const rowsWithExtras = rows.map((r) => ({
+    ...r,
+    tags: tagsByTicket[r.id] ?? [],
+    updatedByName: updatedByTicket[r.id] ?? null,
+  }));
+
   // Needed for the per-row and bulk-assign (admin only) assignee pickers.
   const agents = await db
     .select({ id: user.id, name: user.name, email: user.email })
@@ -334,12 +377,15 @@ async function TicketsResults({
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-muted-foreground">
-        {total} ticket{total === 1 ? "" : "s"}
-        {search || statusFilter || categoryFilter
-          ? " matching your filters"
-          : ""}
-      </p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          {total} ticket{total === 1 ? "" : "s"}
+          {search || statusFilter || categoryFilter
+            ? " matching your filters"
+            : ""}
+        </p>
+        <ColumnSettingsDialog columns={columnPrefs} />
+      </div>
 
       {rows.length === 0 ? (
         <div className="bg-card rounded-xl border border-border shadow-soft flex flex-col items-center justify-center py-20 text-center">
@@ -358,10 +404,11 @@ async function TicketsResults({
           <TicketsTable
             agents={agents}
             categoryMap={categoryMap}
+            columnPrefs={columnPrefs}
             isAdmin={isAdmin}
             priorities={priorities}
             priorityMap={priorityMap}
-            rows={rows}
+            rows={rowsWithExtras}
             statuses={statuses}
             statusMap={statusMap}
           />
