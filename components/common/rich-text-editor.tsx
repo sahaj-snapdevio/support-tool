@@ -350,7 +350,7 @@ export function RichTextEditor({
           "tiptap-content focus:outline-none",
           compact
             ? "min-h-9 max-h-40 overflow-y-auto px-2 py-1.5"
-            : "min-h-[96px] px-4 py-3"
+            : "min-h-[96px] max-h-96 overflow-y-auto px-4 py-3"
         ),
       },
       handleKeyDown: (view, event) => {

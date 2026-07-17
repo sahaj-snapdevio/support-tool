@@ -27,7 +27,7 @@ export function PageSizeSelect({ pageSize }: { pageSize: number }) {
       onValueChange={handleChange}
       options={OPTIONS}
       search={false}
-      triggerClassName="h-8 w-16 text-xs"
+      triggerClassName="h-8 w-20 text-xs"
       value={String(pageSize)}
     />
   );

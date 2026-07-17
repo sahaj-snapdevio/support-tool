@@ -110,8 +110,13 @@ export function CannedResponsesManager({ initialResponses }: Props) {
   }
 
   return (
-    <section className="bg-card rounded-xl border border-border shadow-soft p-6 space-y-5">
-      <div className="flex items-center justify-end">
+    <div className="space-y-5">
+      {/* Header — count on the left, add button on the right */}
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          {initialResponses.length}{" "}
+          {initialResponses.length === 1 ? "response" : "responses"}
+        </p>
         <Button
           className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-md gap-1.5"
           onClick={openAdd}
@@ -123,7 +128,7 @@ export function CannedResponsesManager({ initialResponses }: Props) {
       </div>
 
       {initialResponses.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-14 text-center">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card py-16 text-center">
           <ChatTextIcon className="size-8 text-muted-foreground mb-3" />
           <p className="text-sm font-medium text-foreground">
             No canned responses yet
@@ -133,36 +138,46 @@ export function CannedResponsesManager({ initialResponses }: Props) {
           </p>
         </div>
       ) : (
-        <div className="divide-y divide-border/60">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {initialResponses.map((r) => (
-            <div className="flex items-start gap-3 py-3" key={r.id}>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground">{r.title}</p>
-                <p className="text-xs text-muted-foreground truncate mt-0.5">
-                  {richTextToPlainText(r.content) || "—"}
-                </p>
+            <div
+              className="group flex flex-col rounded-xl border border-border bg-card p-4 shadow-soft transition-colors hover:border-stone"
+              key={r.id}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-accent text-muted-foreground">
+                    <ChatTextIcon className="size-3.5" />
+                  </div>
+                  <h3 className="truncate text-sm font-semibold text-foreground">
+                    {r.title}
+                  </h3>
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  <button
+                    aria-label={`Edit ${r.title}`}
+                    className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    onClick={() => openEdit(r)}
+                    type="button"
+                  >
+                    <PencilSimpleIcon className="size-3.5" />
+                  </button>
+                  <button
+                    aria-label={`Delete ${r.title}`}
+                    className="flex size-7 items-center justify-center rounded-md text-red-600 transition-colors hover:bg-red-50"
+                    onClick={() => {
+                      setError(null);
+                      setDeleteTarget(r);
+                    }}
+                    type="button"
+                  >
+                    <TrashIcon className="size-3.5" />
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-2 shrink-0">
-                <Button
-                  className="h-8 border-border text-foreground hover:bg-accent rounded-md"
-                  onClick={() => openEdit(r)}
-                  size="sm"
-                  variant="outline"
-                >
-                  <PencilSimpleIcon className="size-3.5" />
-                </Button>
-                <Button
-                  className="h-8 border-red-200 text-red-600 hover:bg-red-50 rounded-md"
-                  onClick={() => {
-                    setError(null);
-                    setDeleteTarget(r);
-                  }}
-                  size="sm"
-                  variant="outline"
-                >
-                  <TrashIcon className="size-3.5" />
-                </Button>
-              </div>
+              <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">
+                {richTextToPlainText(r.content) || "—"}
+              </p>
             </div>
           ))}
         </div>
@@ -178,7 +193,7 @@ export function CannedResponsesManager({ initialResponses }: Props) {
         }}
         open={addOpen || editTarget !== null}
       >
-        <DialogContent className="rounded-xl max-w-lg">
+        <DialogContent className="rounded-xl max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-foreground">
               {editTarget ? "Edit Response" : "Add Response"}
@@ -293,6 +308,6 @@ export function CannedResponsesManager({ initialResponses }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </section>
+    </div>
   );
 }

@@ -52,15 +52,21 @@ export async function POST(
     .getAll("attachments")
     .filter((v): v is File => v instanceof File && v.size > 0);
 
-  if (!content || isRichTextEmpty(content)) {
+  // A reply may be just an attachment (no text) — reject only when BOTH the
+  // message and the attachment list are empty.
+  if ((!content || isRichTextEmpty(content)) && attachmentFiles.length === 0) {
     return NextResponse.json(
-      { error: "Content is required." },
+      { error: "Add a message or an attachment." },
       { status: 400 }
     );
   }
 
-  // Plain-text form of the (Tiptap JSON) reply, for email/notification/push previews.
-  const contentText = richTextToPlainText(content);
+  // Plain-text form of the (Tiptap JSON) reply, for email/notification/push
+  // previews. Falls back to a marker for attachment-only replies so those
+  // previews aren't blank.
+  const contentText =
+    richTextToPlainText(content) ||
+    (attachmentFiles.length > 0 ? "(sent an attachment)" : "");
 
   // Determine actor: customer (token) or agent (session)
   let authorName: string;

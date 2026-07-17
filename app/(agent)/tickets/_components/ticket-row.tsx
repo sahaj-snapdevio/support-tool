@@ -173,8 +173,9 @@ export function TicketRow({
         </td>
         <td className="px-4 py-3">
           <Link
-            className="text-[13px] font-medium text-foreground hover:underline line-clamp-1"
+            className="text-[13px] font-medium text-foreground hover:underline line-clamp-2"
             href={`/tickets/${row.id}`}
+            title={row.subject}
           >
             {row.subject}
           </Link>

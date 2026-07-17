@@ -9,7 +9,7 @@ export default async function CannedResponsesPage() {
   const responses = await getCannedResponses();
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6">
       <CannedResponsesManager initialResponses={responses} />
     </div>
   );

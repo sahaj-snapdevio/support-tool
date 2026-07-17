@@ -18,6 +18,7 @@ import {
 import { requireAgent } from "@/lib/authz";
 import { getCannedResponses } from "@/lib/canned-responses";
 import { db } from "@/lib/db";
+import { isRichTextEmpty } from "@/lib/rich-text";
 import { storage } from "@/lib/storage";
 import { getTicketTags } from "@/lib/tags";
 import {
@@ -199,9 +200,17 @@ export default async function AgentTicketDetailPage({ params }: Props) {
                     <LocalDateTime date={ticket.createdAt} />
                   </span>
                 </div>
-                <RichTextContent content={ticket.description} />
+                {!isRichTextEmpty(ticket.description) && (
+                  <RichTextContent content={ticket.description} />
+                )}
                 {ticketLevelAttachments.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-border">
+                  <div
+                    className={
+                      isRichTextEmpty(ticket.description)
+                        ? ""
+                        : "mt-4 pt-4 border-t border-border"
+                    }
+                  >
                     <DeletableTicketAttachments
                       items={ticketLevelAttachments.map((a) => ({
                         id: a.id,
@@ -265,10 +274,18 @@ export default async function AgentTicketDetailPage({ params }: Props) {
                         <LocalDateTime date={comment.createdAt} />
                       </span>
                     </div>
-                    <RichTextContent content={comment.content} />
+                    {!isRichTextEmpty(comment.content) && (
+                      <RichTextContent content={comment.content} />
+                    )}
 
                     {commentAttachments.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-border">
+                      <div
+                        className={
+                          isRichTextEmpty(comment.content)
+                            ? ""
+                            : "mt-3 pt-3 border-t border-border"
+                        }
+                      >
                         <DeletableTicketAttachments
                           items={commentAttachments.map((a) => ({
                             id: a.id,

@@ -18,6 +18,7 @@ import {
 } from "@/db/schema";
 import { signEmailToken } from "@/lib/customer-access";
 import { db } from "@/lib/db";
+import { isRichTextEmpty } from "@/lib/rich-text";
 import { storage } from "@/lib/storage";
 import { getTicketCategories, getTicketStatuses } from "@/lib/ticket-config";
 import { COLOR_BADGE } from "@/lib/tickets";
@@ -264,10 +265,18 @@ export default async function TicketDetailPage({
                   {getInitials(ticket.customerName)}
                 </div>
               </div>
-              <RichTextContent content={ticket.description} />
+              {!isRichTextEmpty(ticket.description) && (
+                <RichTextContent content={ticket.description} />
+              )}
 
               {ticketLevelAttachments.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-sand">
+                <div
+                  className={
+                    isRichTextEmpty(ticket.description)
+                      ? ""
+                      : "mt-4 pt-4 border-t border-sand"
+                  }
+                >
                   <TicketAttachments
                     items={ticketLevelAttachments.map((a) => ({
                       id: a.id,
@@ -323,10 +332,18 @@ export default async function TicketDetailPage({
                           </div>
                         )}
                       </div>
-                      <RichTextContent content={comment.content} />
+                      {!isRichTextEmpty(comment.content) && (
+                        <RichTextContent content={comment.content} />
+                      )}
 
                       {commentAttachments.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-sand">
+                        <div
+                          className={
+                            isRichTextEmpty(comment.content)
+                              ? ""
+                              : "mt-3 pt-3 border-t border-sand"
+                          }
+                        >
                           <TicketAttachments
                             items={commentAttachments.map((a) => ({
                               id: a.id,

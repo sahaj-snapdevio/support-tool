@@ -110,8 +110,10 @@ export function AgentReplyForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (isRichTextEmpty(content)) {
-      setError("Write something before sending.");
+    // Allow sending with just an attachment (no text) — only block when both
+    // the message and the attachment list are empty.
+    if (isRichTextEmpty(content) && files.length === 0) {
+      setError("Write a message or attach a file before sending.");
       return;
     }
     setError(null);
@@ -275,7 +277,9 @@ export function AgentReplyForm({
                 ? "bg-amber-600 hover:bg-amber-700 text-white"
                 : "bg-primary hover:bg-primary/90 text-primary-foreground"
             )}
-            disabled={submitting || isRichTextEmpty(content)}
+            disabled={
+              submitting || (isRichTextEmpty(content) && files.length === 0)
+            }
             title={isInternal ? "Add note" : "Send reply"}
             type="submit"
           >
