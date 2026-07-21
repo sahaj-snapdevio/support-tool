@@ -17,7 +17,7 @@ cp .env.example .env          # fill in APP_SECRET (32+ chars) and NEXT_PUBLIC_A
 You can run Postgres locally without Docker using the embedded dev database:
 
 ```bash
-pnpm db:local                 # starts an embedded Postgres on port 54329
+pnpm db:local                 # starts an embedded Postgres on port 5432
 pnpm db:migrate               # apply migrations
 pnpm db:seed                  # seed default statuses & categories
 pnpm create:admin you@example.com "Your Name"

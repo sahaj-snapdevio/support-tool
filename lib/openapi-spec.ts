@@ -3,12 +3,13 @@
 // This is the canonical machine-readable contract. It is rendered by the
 // Scalar reference at /admin/api-keys/docs, downloadable from
 // GET /api/admin/api-keys/openapi (importable into Postman and most other
-// tooling), and it must be kept in sync with docs/api.md and the route
-// implementations when the API changes.
+// tooling), and it must be kept in sync with docs/api.md, the hand-authored
+// Postman collection (app/api/admin/api-keys/postman/route.ts), and the
+// route implementations when the API changes.
 //
-// Hand-authored on purpose: the surface is five operations, so a generator
+// Hand-authored on purpose: the surface is eight operations, so a generator
 // pipeline (zod-to-openapi etc.) would be more machinery than value. Revisit
-// if the v1 surface grows.
+// if the v1 surface grows further.
 
 const ERROR_SCHEMA = {
   type: "object",
@@ -76,15 +77,15 @@ export function buildOpenApiSpec(baseUrl: string): Record<string, unknown> {
         "",
         "## Rate limits",
         "",
-        "Ticket creation is limited to **100 requests per minute per key**. A `429` means you've hit it — back off and retry after a moment.",
+        "Per key: **100 ticket creations/min**, **60 replies/min**, **60 status changes/min**. Read-only endpoints aren't rate-limited. A `429` means you've hit a write limit — back off and retry after a moment.",
         "",
         "## Errors",
         "",
-        'Every error response is `{ "error": "<message>" }` with an appropriate HTTP status (`400` validation, `401` auth, `404` not found, `429` rate limited, `500` server error).',
+        'Every error response is `{ "error": "<message>" }` with an appropriate HTTP status (`400` validation, `401` auth, `403` forbidden, `404` not found, `429` rate limited, `500` server error).',
         "",
         "## Not supported yet",
         "",
-        "File attachments, posting replies through the API, webhooks, and a client-side/embeddable widget. See the ticket's `portalUrl` for everything the API doesn't cover — the customer can reply and track the ticket there with zero extra work on your end.",
+        "Webhooks and a client-side/embeddable widget. See the ticket's `portalUrl` for everything else the API doesn't cover — the customer can reply and track the ticket there with zero extra work on your end.",
       ].join("\n"),
     },
     servers: [
@@ -310,21 +311,30 @@ export function buildOpenApiSpec(baseUrl: string): Record<string, unknown> {
         get: {
           tags: ["Tickets"],
           operationId: "getTicket",
-          summary: "Get a ticket's status",
+          summary: "Get a ticket",
           description:
-            'Look up a ticket\'s current status — e.g. to show "In Progress" on your own site without redirecting to the portal. Any active API key can read any ticket on your instance; there is no per-key scoping, since a self-hosted deployment belongs to one owner.',
+            'Look up a ticket\'s full details — e.g. to show "In Progress" on your own site without redirecting to the portal, or to bind a ticket to the account that owns it. Any active API key can read any ticket on your instance; there is no per-key scoping, since a self-hosted deployment belongs to one owner.',
           parameters: [{ $ref: "#/components/parameters/TicketId" }],
           responses: {
             "200": {
               description: "The ticket.",
               content: {
                 "application/json": {
-                  schema: { $ref: "#/components/schemas/TicketSummary" },
+                  schema: { $ref: "#/components/schemas/TicketDetail" },
                   example: {
                     id: "cku1a2b3c4d5e6f",
                     ticketNumber: 1042,
                     subject: "Cannot log in",
                     status: "in_progress",
+                    category: "bug",
+                    priority: "normal",
+                    customerName: "Jane Doe",
+                    customerEmail: "jane@example.com",
+                    description: "I get an error when I try to sign in.",
+                    descriptionHtml:
+                      "<p>I get an error when I try to sign in.</p>",
+                    attachments: [],
+                    customFields: { order_id: "A-1042", plan: "Pro" },
                     createdAt: "2026-07-01T10:00:00.000Z",
                     updatedAt: "2026-07-02T09:15:00.000Z",
                   },
@@ -333,6 +343,41 @@ export function buildOpenApiSpec(baseUrl: string): Record<string, unknown> {
             },
             "401": { $ref: "#/components/responses/Unauthorized" },
             "404": { $ref: "#/components/responses/NotFound" },
+          },
+        },
+      },
+      "/api/v1/tickets/{id}/attachments/{attachmentId}": {
+        get: {
+          tags: ["Tickets"],
+          operationId: "getTicketAttachment",
+          summary: "Download an attachment",
+          description:
+            "Download a single attachment's bytes — e.g. to proxy a file the customer or an agent uploaded through to your own users, without exposing storage keys. The attachment must belong to the ticket in the path. This is the endpoint every `url` field elsewhere in the API (on the ticket itself and on comments) points to.",
+          parameters: [
+            { $ref: "#/components/parameters/TicketId" },
+            { $ref: "#/components/parameters/AttachmentId" },
+          ],
+          responses: {
+            "200": {
+              description:
+                "The raw file bytes, with `Content-Type` set to the attachment's stored MIME type and `Content-Disposition: attachment`.",
+              content: {
+                "application/octet-stream": {
+                  schema: { type: "string", format: "binary" },
+                },
+              },
+            },
+            "401": { $ref: "#/components/responses/Unauthorized" },
+            "404": {
+              description:
+                "The attachment doesn't exist, doesn't belong to that ticket, or the underlying file is missing from storage.",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                  example: { error: "Attachment not found." },
+                },
+              },
+            },
           },
         },
       },
@@ -371,6 +416,7 @@ export function buildOpenApiSpec(baseUrl: string): Record<string, unknown> {
                         content:
                           "Thanks for reaching out — looking into this now.",
                         html: "<p>Thanks for reaching out — looking into this now.</p>",
+                        attachments: [],
                         createdAt: "2026-07-01T11:30:00.000Z",
                       },
                     ],
@@ -380,6 +426,144 @@ export function buildOpenApiSpec(baseUrl: string): Record<string, unknown> {
             },
             "401": { $ref: "#/components/responses/Unauthorized" },
             "404": { $ref: "#/components/responses/NotFound" },
+          },
+        },
+        post: {
+          tags: ["Tickets"],
+          operationId: "createTicketComment",
+          summary: "Post a reply",
+          description:
+            "Post a reply on behalf of the ticket's customer — e.g. to let them keep replying from your own product instead of the portal link. The reply is bound to whichever email the ticket was created with: `email` must match exactly, so an integrating backend can only reply as the account that actually owns the ticket (enforcing which of *your* logged-in users maps to which ticket is your job, not ours).",
+          parameters: [{ $ref: "#/components/parameters/TicketId" }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/CreateCommentRequest" },
+                example: {
+                  email: "jane@example.com",
+                  content: "Thanks, that fixed it!",
+                  contentFormat: "text",
+                },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Reply posted.",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    required: ["id"],
+                    properties: {
+                      id: { type: "string", description: "New comment id." },
+                    },
+                  },
+                  example: { id: "ckx4d5e6f7g8h9i" },
+                },
+              },
+            },
+            "400": {
+              description:
+                "`email`/`content` missing, invalid JSON, an attachment failed validation, or the ticket is closed (reopen it first via `PATCH /tickets/:id/status`).",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                  example: { error: "Cannot reply to a closed ticket." },
+                },
+              },
+            },
+            "401": { $ref: "#/components/responses/Unauthorized" },
+            "403": { $ref: "#/components/responses/Forbidden" },
+            "404": { $ref: "#/components/responses/NotFound" },
+            "429": {
+              description:
+                "Rate limited — more than 60 replies in a minute on this key.",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                  example: {
+                    error: "Too many requests. Please try again later.",
+                  },
+                },
+              },
+            },
+            "500": {
+              description: "Unexpected server error. Nothing was posted.",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                  example: { error: "Failed to add reply." },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/v1/tickets/{id}/status": {
+        patch: {
+          tags: ["Tickets"],
+          operationId: "updateTicketStatus",
+          summary: "Close or reopen a ticket",
+          description:
+            'Close or reopen a ticket on behalf of its customer — the same action the "Close"/"Reopen" button does in the customer portal. Bound to the owner\'s email the same way replies are.',
+          parameters: [{ $ref: "#/components/parameters/TicketId" }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/UpdateStatusRequest" },
+                example: { email: "jane@example.com", action: "close" },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description:
+                "The resulting status slug (the platform's configured closed/default status). Closing sends the customer the standard \"ticket closed\" email.",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    required: ["status"],
+                    properties: {
+                      status: {
+                        type: "string",
+                        description:
+                          "Resolve its label via `GET /api/v1/config`.",
+                      },
+                    },
+                  },
+                  example: { status: "closed" },
+                },
+              },
+            },
+            "400": {
+              description:
+                "`email`/`action` missing or invalid, or the ticket is already in the requested state.",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                  example: { error: "Ticket is already closed." },
+                },
+              },
+            },
+            "401": { $ref: "#/components/responses/Unauthorized" },
+            "403": { $ref: "#/components/responses/Forbidden" },
+            "404": { $ref: "#/components/responses/NotFound" },
+            "429": {
+              description:
+                "Rate limited — more than 60 status changes in a minute on this key.",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Error" },
+                  example: {
+                    error: "Too many requests. Please try again later.",
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -403,6 +587,14 @@ export function buildOpenApiSpec(baseUrl: string): Record<string, unknown> {
           schema: { type: "string" },
           example: "cku1a2b3c4d5e6f",
         },
+        AttachmentId: {
+          name: "attachmentId",
+          in: "path",
+          required: true,
+          description: "The attachment id (cuid2), from a ticket or comment's `attachments` array.",
+          schema: { type: "string" },
+          example: "ckw3c4d5e6f7g8h",
+        },
       },
       responses: {
         Unauthorized: {
@@ -411,6 +603,16 @@ export function buildOpenApiSpec(baseUrl: string): Record<string, unknown> {
             "application/json": {
               schema: { $ref: "#/components/schemas/Error" },
               example: { error: "Invalid or revoked API key." },
+            },
+          },
+        },
+        Forbidden: {
+          description:
+            "The `email` in the request body doesn't match the ticket's customer email.",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/Error" },
+              example: { error: "This ticket does not belong to that email." },
             },
           },
         },
@@ -427,6 +629,31 @@ export function buildOpenApiSpec(baseUrl: string): Record<string, unknown> {
       schemas: {
         Error: ERROR_SCHEMA,
         TicketSummary: TICKET_SUMMARY_SCHEMA,
+        Base64AttachmentInput: {
+          type: "object",
+          required: ["filename", "mimeType", "data"],
+          properties: {
+            filename: { type: "string", examples: ["screenshot.png"] },
+            mimeType: {
+              type: "string",
+              enum: [
+                "image/jpeg",
+                "image/png",
+                "application/pdf",
+                "application/zip",
+                "text/plain",
+              ],
+              examples: ["image/png"],
+            },
+            data: {
+              type: "string",
+              format: "byte",
+              description:
+                "Raw file content, base64-encoded (no `data:` URL prefix).",
+              examples: ["iVBORw0KGgoAAAANSU..."],
+            },
+          },
+        },
         CreateTicketRequest: {
           type: "object",
           required: ["name", "email", "subject", "description", "category"],
@@ -482,6 +709,13 @@ export function buildOpenApiSpec(baseUrl: string): Record<string, unknown> {
               additionalProperties: true,
               examples: [{ order_id: "A-1042", plan: "Pro" }],
             },
+            attachments: {
+              type: "array",
+              description:
+                "Up to 5 files, 10 MB each. More can be added later via `POST /tickets/:id/comments`, up to the same 5-per-ticket cap.",
+              maxItems: 5,
+              items: { $ref: "#/components/schemas/Base64AttachmentInput" },
+            },
           },
         },
         CreateTicketResponse: {
@@ -502,6 +736,22 @@ export function buildOpenApiSpec(baseUrl: string): Record<string, unknown> {
             },
           },
         },
+        Attachment: {
+          type: "object",
+          required: ["id", "filename", "fileSize", "mimeType", "url"],
+          properties: {
+            id: { type: "string", description: "Attachment id (cuid2)." },
+            filename: { type: "string", examples: ["screenshot.png"] },
+            fileSize: { type: "integer", description: "Bytes." },
+            mimeType: { type: "string", examples: ["image/png"] },
+            url: {
+              type: "string",
+              format: "uri",
+              description:
+                "Fetch the file's bytes from `GET /tickets/:id/attachments/:attachmentId`.",
+            },
+          },
+        },
         Comment: {
           type: "object",
           required: [
@@ -510,6 +760,7 @@ export function buildOpenApiSpec(baseUrl: string): Record<string, unknown> {
             "authorRole",
             "content",
             "html",
+            "attachments",
             "createdAt",
           ],
           properties: {
@@ -528,7 +779,125 @@ export function buildOpenApiSpec(baseUrl: string): Record<string, unknown> {
               description:
                 "The same reply rendered as HTML (generated from Support Tool's own stored document — only tags its editor can produce ever appear).",
             },
+            attachments: {
+              type: "array",
+              description: "Files uploaded with this specific reply.",
+              items: { $ref: "#/components/schemas/Attachment" },
+            },
             createdAt: { type: "string", format: "date-time" },
+          },
+        },
+        CreateCommentRequest: {
+          type: "object",
+          required: ["email", "content"],
+          properties: {
+            email: {
+              type: "string",
+              format: "email",
+              description: "Must match the ticket's customer email.",
+              examples: ["jane@example.com"],
+            },
+            content: {
+              type: "string",
+              description: "The reply body.",
+              examples: ["Thanks, that fixed it!"],
+            },
+            contentFormat: {
+              type: "string",
+              enum: ["html", "text"],
+              default: "html",
+              description:
+                "How to interpret `content`. Note the *opposite* default from ticket creation's `descriptionFormat`.",
+            },
+            attachments: {
+              type: "array",
+              description:
+                "Same format as ticket creation, capped at 5 files *total* per ticket (existing attachments count against it).",
+              items: { $ref: "#/components/schemas/Base64AttachmentInput" },
+            },
+          },
+        },
+        UpdateStatusRequest: {
+          type: "object",
+          required: ["email", "action"],
+          properties: {
+            email: {
+              type: "string",
+              format: "email",
+              description: "Must match the ticket's customer email.",
+              examples: ["jane@example.com"],
+            },
+            action: { type: "string", enum: ["close", "reopen"] },
+          },
+        },
+        TicketDetail: {
+          type: "object",
+          required: [
+            "id",
+            "ticketNumber",
+            "subject",
+            "status",
+            "category",
+            "priority",
+            "customerName",
+            "customerEmail",
+            "description",
+            "descriptionHtml",
+            "attachments",
+            "customFields",
+            "createdAt",
+            "updatedAt",
+          ],
+          properties: {
+            id: {
+              type: "string",
+              description: "Ticket id (cuid2). Use it for the other ticket endpoints.",
+              examples: ["cku1a2b3c4d5e6f"],
+            },
+            ticketNumber: {
+              type: "integer",
+              description: "Human-friendly sequential number, as shown to agents.",
+              examples: [1042],
+            },
+            subject: { type: "string", examples: ["Cannot log in"] },
+            status: {
+              type: "string",
+              description:
+                "Status slug. The set is deployment-specific and admin-configurable — resolve labels via `GET /api/v1/config` instead of hardcoding.",
+              examples: ["in_progress"],
+            },
+            category: { type: "string", examples: ["bug"] },
+            priority: { type: "string", examples: ["normal"] },
+            customerName: { type: "string", examples: ["Jane Doe"] },
+            customerEmail: {
+              type: "string",
+              format: "email",
+              examples: ["jane@example.com"],
+            },
+            description: {
+              type: "string",
+              description:
+                "The customer's opening message, flattened to plain text.",
+            },
+            descriptionHtml: {
+              type: "string",
+              description: "The same opening message rendered as HTML.",
+            },
+            attachments: {
+              type: "array",
+              description:
+                "Files attached to the opening message (not to any later reply — see `GET /tickets/:id/comments` for those).",
+              items: { $ref: "#/components/schemas/Attachment" },
+            },
+            customFields: {
+              type: "object",
+              description:
+                "`{ \"<key>\": <value> }` map, values decoded to native JSON types (number/boolean/string) — matching what you'd send on create.",
+              additionalProperties: true,
+              examples: [{ order_id: "A-1042", plan: "Pro" }],
+            },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
           },
         },
         Config: {

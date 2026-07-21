@@ -8,8 +8,11 @@ create tickets without sending customers through the customer portal form.
 > client) at `/admin/api-keys/docs`. The canonical contract is the OpenAPI
 > 3.1 spec in `lib/openapi-spec.ts`, downloadable at
 > `GET /api/admin/api-keys/openapi` — import it into Postman or any other
-> API tooling. When the API changes, update the spec and this document
-> together.
+> API tooling. There's also a ready-to-use Postman collection (hand-authored,
+> in `app/api/admin/api-keys/postman/route.ts`), pre-filled with this
+> instance's URL, downloadable from `/admin/api-keys` ("Postman Collection")
+> or `GET /api/admin/api-keys/postman`. When the API changes, update the
+> spec, this document, and the Postman collection together.
 
 This is a **server-to-server** API: your backend calls it with a secret API
 key. Don't call it directly from a customer's browser — the key would be
@@ -32,8 +35,12 @@ A missing, invalid, or revoked key gets a `401`.
 
 ## Rate limits
 
-100 requests per minute per key. A `429` means you've hit it — back off and
-retry after a moment.
+Per API key: **100 ticket creations/min** (`POST /tickets`), **60
+replies/min** (`POST /tickets/:id/comments`), **60 status changes/min**
+(`PATCH /tickets/:id/status`). Read-only endpoints (`GET /config`,
+`GET /tickets`, `GET /tickets/:id`, `GET /tickets/:id/comments`,
+`GET /tickets/:id/attachments/:attachmentId`) aren't rate-limited. A `429`
+means you've hit a write limit — back off and retry after a moment.
 
 ## Errors
 
@@ -110,6 +117,26 @@ Create a ticket.
 | `category` | Yes | Must match a category slug configured in `/admin/ticket-config` |
 | `priority` | No | Must match a priority slug if given; falls back to the platform's default priority |
 | `customFields` | No | `{ "<key>": <value> }` map — see below |
+| `attachments` | No | Array of base64-encoded files — see below |
+
+> **Attachments.** Send an array of `{ filename, mimeType, data }`, where
+> `data` is the raw file content base64-encoded (no `data:` URL prefix —
+> just the base64 string). Up to 5 files per ticket, 10 MB each. Allowed
+> `mimeType`s: `image/jpeg`, `image/png`, `application/pdf`,
+> `application/zip`, `text/plain` — the same limits the customer portal
+> itself enforces. More files can be added later via
+> `POST /api/v1/tickets/:id/comments`, up to the same 5-per-ticket cap
+> (existing attachments count against it).
+>
+> ```json
+> "attachments": [
+>   {
+>     "filename": "screenshot.png",
+>     "mimeType": "image/png",
+>     "data": "iVBORw0KGgoAAAANSU..."
+>   }
+> ]
+> ```
 
 > **Custom fields.** Admins can define extra fields at `/admin/custom-fields`
 > (text, number, date, checkbox, or select) — fetch `GET /api/v1/config` to
@@ -232,6 +259,26 @@ omitted above for brevity.
 on your instance — there's no per-key scoping, since a self-hosted
 deployment belongs to one owner.
 
+## `GET /api/v1/tickets/:id/attachments/:attachmentId`
+
+Download a single attachment's bytes — e.g. to proxy a file the customer or
+an agent uploaded through to your own users, without exposing storage keys.
+The attachment must belong to the ticket in the path. This is the endpoint
+every `url` field elsewhere in the API (on `GET /tickets/:id` and
+`GET /tickets/:id/comments`) points to.
+
+```bash
+curl https://support.example.com/api/v1/tickets/cku1a2b3c4d5e6f/attachments/ckw3c4d5e6f7g8h \
+  -H "Authorization: Bearer stk_live_xxxxxxxxxxxxxxxxxxxxxxxx" \
+  -o screenshot.png
+```
+
+**Response** — `200 OK`: the raw file bytes, with `Content-Type` set to the
+attachment's stored MIME type and `Content-Disposition: attachment` (so a
+browser hitting this URL directly downloads rather than navigates). `404`
+if the attachment doesn't exist, doesn't belong to that ticket, or the
+underlying file is missing from storage.
+
 ## `GET /api/v1/tickets/:id/comments`
 
 Read the conversation thread — e.g. to show ticket replies on your own
@@ -253,6 +300,7 @@ curl https://support.example.com/api/v1/tickets/cku1a2b3c4d5e6f/comments \
       "authorRole": "agent",
       "content": "Thanks for reaching out — looking into this now.",
       "html": "<p>Thanks for reaching out — looking into this now.</p>",
+      "attachments": [],
       "createdAt": "2026-07-01T11:30:00.000Z"
     }
   ]
@@ -265,8 +313,85 @@ internally (bold, lists, links, etc.) — `content` is that flattened to
 plain text; `html` renders the same content with formatting intact, safe
 to insert into a page (it's generated from our own stored document, not
 arbitrary external HTML — only tags the editor itself can produce ever
-come out). Use whichever fits where you're displaying it. `404` if the
-ticket doesn't exist.
+come out). Use whichever fits where you're displaying it. `attachments` is
+an array of `{ id, filename, fileSize, mimeType, url }` — files uploaded
+with that specific reply (`url` points to
+`GET /tickets/:id/attachments/:attachmentId`); empty if the reply had
+none. `404` if the ticket doesn't exist.
+
+## `POST /api/v1/tickets/:id/comments`
+
+Post a reply on behalf of the ticket's customer — e.g. to let them keep
+replying from your own product instead of the portal link. The reply is
+bound to whichever email the ticket was created with: `email` must match
+exactly, so an integrating backend can only reply as the account that
+actually owns the ticket (enforcing which of *your* logged-in users maps to
+which ticket is your job, not ours).
+
+**Body** (JSON):
+
+| Field | Required | Notes |
+|---|---|---|
+| `email` | Yes | Must match the ticket's customer email |
+| `content` | Yes | The reply body |
+| `contentFormat` | No | `"html"` (default) or `"text"` — note the *opposite* default from ticket creation's `descriptionFormat` |
+| `attachments` | No | Same base64 array format as ticket creation, capped at 5 files *total* per ticket (existing attachments count against the cap) |
+
+```bash
+curl -X POST https://support.example.com/api/v1/tickets/cku1a2b3c4d5e6f/comments \
+  -H "Authorization: Bearer stk_live_xxxxxxxxxxxxxxxxxxxxxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "jane@example.com",
+    "content": "Thanks, that fixed it!",
+    "contentFormat": "text"
+  }'
+```
+
+**Response** — `201 Created`:
+
+```json
+{ "id": "ckx4d5e6f7g8h9i" }
+```
+
+`400` if `email`/`content` is missing, the JSON body is invalid, an
+attachment fails validation, or the ticket is closed (reopen it first via
+`PATCH /tickets/:id/status`). `403` if `email` doesn't match the ticket's
+customer email. `404` if the ticket doesn't exist. `429` if this key has
+posted more than 60 replies in a minute.
+
+## `PATCH /api/v1/tickets/:id/status`
+
+Close or reopen a ticket on behalf of its customer — the same action the
+"Close"/"Reopen" button does in the customer portal.
+
+**Body** (JSON):
+
+| Field | Required | Notes |
+|---|---|---|
+| `email` | Yes | Must match the ticket's customer email |
+| `action` | Yes | `"close"` or `"reopen"` |
+
+```bash
+curl -X PATCH https://support.example.com/api/v1/tickets/cku1a2b3c4d5e6f/status \
+  -H "Authorization: Bearer stk_live_xxxxxxxxxxxxxxxxxxxxxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "email": "jane@example.com", "action": "close" }'
+```
+
+**Response** — `200 OK`:
+
+```json
+{ "status": "closed" }
+```
+
+`status` is the resulting status slug (the platform's configured
+closed/default status — resolve its label via `GET /api/v1/config`).
+Closing sends the customer the standard "ticket closed" email. `400` if
+`email`/`action` is missing or invalid, or the ticket is already in the
+requested state (already closed / not closed). `403` if `email` doesn't
+match the ticket's customer email. `404` if the ticket doesn't exist.
+`429` if this key has made more than 60 status changes in a minute.
 
 ## `GET /api/v1/tickets?email=`
 
@@ -303,17 +428,9 @@ the app) — an empty `tickets` array just means no match, not an error.
 
 ## What's not supported yet
 
-- **File attachments** — create the ticket via the API, then have the
-  customer attach files from the portal link if needed.
-- **Posting additional replies** through the API (continuing a
-  conversation from your own widget). When this ships, expect the same
-  `descriptionFormat`-style `text`/`html` input as ticket creation. In the
-  meantime, `GET .../comments`' `html` field is read-only enrichment of
-  *our own* replies, not something you can send back to us — if a customer
-  needs to keep replying with formatting, send them the ticket's
-  `portalUrl` so they use Support Tool's own editor.
 - **Webhooks** — there's no way yet to get notified when an agent replies
   or a ticket's status changes. Poll `GET /api/v1/tickets/:id/comments` if
   you need that today.
 - **A client-side/embeddable widget.** The API is designed to be called
   from your backend, not a browser.
+- **Deleting or editing** a reply or attachment once posted.
