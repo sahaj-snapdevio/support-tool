@@ -7,6 +7,8 @@ import { env } from "@/lib/env";
 // collection for the public API (app/api/v1/*), pre-filled with this
 // instance's own base_url. No secrets in the file — the api_key variable
 // is a placeholder the admin fills in with a real key from /admin/api-keys.
+// Hand-authored (not generated from lib/openapi-spec.ts) — keep it in sync
+// with that spec and docs/api.md when the API changes.
 export async function GET(request: NextRequest) {
   try {
     requireAdminFromRequest(request);
@@ -38,6 +40,7 @@ export async function GET(request: NextRequest) {
         type: "string",
       },
       { key: "ticket_id", value: "", type: "string" },
+      { key: "attachment_id", value: "", type: "string" },
       { key: "customer_email", value: "jane@example.com", type: "string" },
     ],
     item: [
@@ -66,6 +69,7 @@ export async function GET(request: NextRequest) {
                 subject: "Cannot log in",
                 description: "I get an error when I try to sign in.",
                 category: "bug",
+                customFields: { order_id: "A-1042" },
               },
               null,
               2
@@ -132,6 +136,24 @@ export async function GET(request: NextRequest) {
         },
       },
       {
+        name: "Download Attachment",
+        request: {
+          method: "GET",
+          url: {
+            raw: "{{base_url}}/api/v1/tickets/{{ticket_id}}/attachments/{{attachment_id}}",
+            host: ["{{base_url}}"],
+            path: [
+              "api",
+              "v1",
+              "tickets",
+              "{{ticket_id}}",
+              "attachments",
+              "{{attachment_id}}",
+            ],
+          },
+        },
+      },
+      {
         name: "Get Ticket Comments",
         request: {
           method: "GET",
@@ -139,6 +161,70 @@ export async function GET(request: NextRequest) {
             raw: "{{base_url}}/api/v1/tickets/{{ticket_id}}/comments",
             host: ["{{base_url}}"],
             path: ["api", "v1", "tickets", "{{ticket_id}}", "comments"],
+          },
+        },
+      },
+      {
+        name: "Post a Reply",
+        request: {
+          method: "POST",
+          header: [{ key: "Content-Type", value: "application/json" }],
+          body: {
+            mode: "raw",
+            raw: JSON.stringify(
+              {
+                email: "{{customer_email}}",
+                content: "Thanks, that fixed it!",
+                contentFormat: "text",
+              },
+              null,
+              2
+            ),
+          },
+          url: {
+            raw: "{{base_url}}/api/v1/tickets/{{ticket_id}}/comments",
+            host: ["{{base_url}}"],
+            path: ["api", "v1", "tickets", "{{ticket_id}}", "comments"],
+          },
+        },
+      },
+      {
+        name: "Close Ticket",
+        request: {
+          method: "PATCH",
+          header: [{ key: "Content-Type", value: "application/json" }],
+          body: {
+            mode: "raw",
+            raw: JSON.stringify(
+              { email: "{{customer_email}}", action: "close" },
+              null,
+              2
+            ),
+          },
+          url: {
+            raw: "{{base_url}}/api/v1/tickets/{{ticket_id}}/status",
+            host: ["{{base_url}}"],
+            path: ["api", "v1", "tickets", "{{ticket_id}}", "status"],
+          },
+        },
+      },
+      {
+        name: "Reopen Ticket",
+        request: {
+          method: "PATCH",
+          header: [{ key: "Content-Type", value: "application/json" }],
+          body: {
+            mode: "raw",
+            raw: JSON.stringify(
+              { email: "{{customer_email}}", action: "reopen" },
+              null,
+              2
+            ),
+          },
+          url: {
+            raw: "{{base_url}}/api/v1/tickets/{{ticket_id}}/status",
+            host: ["{{base_url}}"],
+            path: ["api", "v1", "tickets", "{{ticket_id}}", "status"],
           },
         },
       },

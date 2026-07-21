@@ -501,8 +501,8 @@ Not found: SQL injection, XSS sinks, SSRF, command injection, secret exposure, s
 | Docker | ✅ Ready | Multi-stage Dockerfile, worker image, Compose with one-shot migrate, external-DB variant |
 | Environment separation | ✅ Ready | zod-validated env; `.env.example` + `.env.docker.example`; build-time placeholders documented |
 | Secrets management | ⚠ Needs Improvement | env-file based; fine for self-host, no vault integration |
-| Backups / DB backups | ❌ Missing | No backup tooling or docs; Compose volume only |
-| Disaster recovery | ❌ Missing | Not documented |
+| Backups / DB backups | ⚠ Needs Improvement | Documented (`docs/backup-and-restore.md`): `pg_dump`/`pg_restore` + cron example + uploads-volume tar; no automated/managed backup tooling shipped, still a manual setup step per deploy |
+| Disaster recovery | ⚠ Needs Improvement | Fresh-host restore steps documented in `docs/backup-and-restore.md`; untested in practice, no automated drill |
 | Horizontal scalability | ⚠ Needs Improvement | App is stateless except local `uploads/` volume (shared volume or S3 required); Postgres-backed rate limits/jobs are multi-process-safe |
 | CDN | ❌ Missing | Not configured (acceptable for self-host) |
 | Image optimization | ✅ Ready | Next defaults; minimal image surface |
@@ -531,7 +531,7 @@ Not found: SQL injection, XSS sinks, SSRF, command injection, secret exposure, s
 - **CI/CD:** **Not Implemented.**
 - **Rollback strategy:** **Not Implemented** — images aren't version-tagged (`support-tool:latest` only), and there is no migration-rollback story.
 
-**Improvements:** add GitHub Actions (lint, typecheck, build, `pnpm audit`, image publish with version tags) → add `/api/health` + container healthchecks → use Next `output: "standalone"` and precompile the worker to shrink the runtime image → document backup/restore.
+**Improvements:** add GitHub Actions (lint, typecheck, build, `pnpm audit`, image publish with version tags) → add `/api/health` + container healthchecks → use Next `output: "standalone"` and precompile the worker to shrink the runtime image. Backup/restore is now documented (`docs/backup-and-restore.md`); still no automated/scheduled backup job shipped out of the box.
 
 ---
 
@@ -634,7 +634,7 @@ Largely intentionally minimal (authenticated app + one public portal):
 | Error tracking (Sentry/GlitchTip) | ❌ Missing |
 | Monitoring/metrics (Prometheus/OTel) | ❌ Missing |
 | CI/CD | ❌ Missing |
-| Backup strategy & docs | ❌ Missing |
+| Backup strategy & docs | ⚠ Documented, not automated (`docs/backup-and-restore.md`) |
 | Security headers/CSP | ❌ Missing |
 | Auth rate limiting/lockout | ❌ Missing |
 | Test suite | ❌ Missing |
@@ -667,7 +667,7 @@ Largely intentionally minimal (authenticated app + one public portal):
 | Test foundation: vitest + authz-matrix API tests + rich-text/rate-limit unit tests | **M** |
 | Customer-token expiry/rotation (A2) | **M** |
 | Missing FK indexes migration | **S** |
-| Backup/restore documentation (pg_dump cron or wal-g) | **S** |
+| ~~Backup/restore documentation (pg_dump cron or wal-g)~~ | **S** — ✅ Done (`docs/backup-and-restore.md`) |
 
 ### Medium priority
 | Item | Effort |
@@ -689,6 +689,7 @@ Largely intentionally minimal (authenticated app + one public portal):
 | Mobile pass on agent ticket detail | **M** |
 | robots.ts disallowing token URLs | **S** |
 | Consolidate the 3 config-manager components | **S** |
+| Ship an automated backup job (cron/systemd timer + off-site push, or wal-g/managed PITR) instead of relying on the operator to wire up the documented commands | **S** |
 
 ---
 
@@ -703,9 +704,9 @@ Largely intentionally minimal (authenticated app + one public portal):
 | Scalability | **6** | Solid to ~1k users; known ceilings beyond |
 | Maintainability | **7** | Superb docs; zero tests is the drag |
 | Developer Experience | **9** | One-command dev (app+worker), embedded Postgres, seeds, Biome, typed env |
-| Documentation | **9** | 17 spec docs + per-feature plans + CLAUDE/AGENTS/README/CONTRIBUTING |
+| Documentation | **9** | 18 spec docs (incl. backup/restore) + per-feature plans + CLAUDE/AGENTS/README/CONTRIBUTING |
 | Testing | **1** | Nothing exists |
-| Production Readiness | **6** | Docker story is great; CI/monitoring/backups/headers missing |
+| Production Readiness | **6** | Docker story is great; backup/restore now documented; CI/monitoring/headers still missing |
 
 ### **Overall: 72 / 100**
 
@@ -721,6 +722,6 @@ What blocks a production label is a short, well-defined list:
 
 1. **Two high-severity security holes** — unauthenticated attachment serving and unthrottled auth endpoints — plus zero security headers. All fixable in roughly a day.
 2. **Zero tests and zero CI.** Nothing verifies the authorization matrix that the whole product depends on; the `/orbit` matcher bug is exactly the class of regression a 20-test authz suite would catch.
-3. **No operational safety net:** no health endpoint, no error tracking, no monitoring, no backup story, no rollback strategy.
+3. **Thin operational safety net:** no health endpoint, no error tracking, no monitoring, no rollback strategy. Backup/restore is now documented (`docs/backup-and-restore.md`), but there's still no automated/scheduled job — the operator has to wire the documented commands up themselves.
 
 The Critical + High roadmap items in §27 amount to an estimated **1–2 focused weeks**. After that pass, this project would move to **"Ready with Minor Improvements"** with confidence. For an internal/low-stakes deployment behind a trusted reverse proxy, it could be run today with eyes open — but fix A4 and A9 first regardless.

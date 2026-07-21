@@ -4,6 +4,7 @@ import {
   ChatTextIcon,
   ClockCounterClockwiseIcon,
   KeyIcon,
+  ListChecksIcon,
   PaintBrushIcon,
   ShieldCheckIcon,
   SquaresFourIcon,
@@ -13,11 +14,14 @@ import {
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ADMIN_ROLE, PRODUCT_NAME } from "@/config/platform";
+import { BrandMark } from "@/components/common/brand-mark";
+import { ADMIN_ROLE } from "@/config/platform";
 import { getInitials } from "@/lib/utils";
 import { SignOutButton } from "./sign-out-button";
 
 interface AgentSidebarProps {
+  brandName: string;
+  logoUrl: string | null;
   userEmail: string;
   userName: string;
   userRole: string;
@@ -34,6 +38,11 @@ const adminItems = [
   { href: "/admin/appearance", label: "Appearance", icon: PaintBrushIcon },
   { href: "/admin/ticket-config", label: "Ticket Config", icon: TagIcon },
   {
+    href: "/admin/custom-fields",
+    label: "Custom Fields",
+    icon: ListChecksIcon,
+  },
+  {
     href: "/admin/audit-log",
     label: "Audit Log",
     icon: ClockCounterClockwiseIcon,
@@ -42,6 +51,8 @@ const adminItems = [
 ];
 
 export function AgentSidebar({
+  brandName,
+  logoUrl,
   userName,
   userEmail,
   userRole,
@@ -58,15 +69,20 @@ export function AgentSidebar({
       {/* Logo */}
       <div className="px-4 py-5 border-b border-sidebar-border">
         <Link className="flex items-center gap-2.5" href="/tickets">
-          <div className="size-7 rounded-md bg-sidebar-accent flex items-center justify-center">
-            <TicketIcon
-              className="size-4 text-sidebar-accent-foreground"
-              weight="fill"
-            />
-          </div>
-          <span className="font-semibold text-sidebar-accent-foreground text-sm">
-            {PRODUCT_NAME}
-          </span>
+          <BrandMark
+            fallbackIcon={
+              <div className="size-7 rounded-md bg-sidebar-accent flex items-center justify-center shrink-0">
+                <TicketIcon
+                  className="size-4 text-sidebar-accent-foreground"
+                  weight="fill"
+                />
+              </div>
+            }
+            imgClassName="h-7 w-auto max-w-40 object-contain"
+            logoUrl={logoUrl}
+            name={brandName}
+            textClassName="font-semibold text-sidebar-accent-foreground text-sm"
+          />
         </Link>
       </div>
 

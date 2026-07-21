@@ -16,6 +16,8 @@ Built with Next.js, PostgreSQL, Drizzle ORM, and Better Auth.
 - [Environment Variables](#environment-variables)
 - [Docker (Self-Hosted)](#docker-self-hosted)
 - [Deployment](#deployment)
+- [Public API — Integrate With Your Website](#public-api--integrate-with-your-website)
+- [Backup & Restore](#backup--restore)
 - [Roles](#roles)
 - [Migrating from Zammad](#migrating-from-zammad)
 - [Documentation](#documentation)
@@ -34,7 +36,7 @@ Built with Next.js, PostgreSQL, Drizzle ORM, and Better Auth.
 - **Dashboard** — Ticket stats for agents and admins (open, in-progress, closed, average wait time).
 - **Activity History** — Full audit trail per ticket (status changes, assignments, replies).
 - **Role-Based Access** — Customer, Agent, and Admin roles with strict permission enforcement.
-- **Public API** — Create tickets from your own website via API-key-authenticated REST endpoints. See [docs/api.md](docs/api.md).
+- **Public API** — Create and read tickets from your own website's backend via API-key-authenticated REST endpoints, so you can build a native support form on your own site. See [Public API](#public-api--integrate-with-your-website).
 
 ---
 
@@ -78,12 +80,12 @@ Edit `.env` — set `APP_SECRET` (32+ characters) and `NEXT_PUBLIC_APP_URL`. SMT
 (without it, outgoing emails are logged to the worker console instead of delivered).
 
 `DATABASE_URL` is also required, but `.env.example`'s default already points at
-`localhost:54329` — matching the embedded Postgres `pnpm db:local` starts below — so leave
+`localhost:5432` — matching the embedded Postgres `pnpm db:local` starts below — so leave
 it as-is if you're using that. Only change it if you're pointing at your own PostgreSQL
 instance instead.
 
 ```bash
-pnpm db:local                 # optional: start an embedded Postgres on :54329
+pnpm db:local                 # optional: start an embedded Postgres on :5432
 pnpm setup                    # run migrations + seed default statuses/categories
 pnpm create:admin you@example.com "Your Name" "a-strong-password"
 pnpm dev                      # runs Next.js + the background worker together
@@ -244,6 +246,61 @@ enough.
 
 ---
 
+## Public API — Integrate With Your Website
+
+Don't want to send customers through the customer portal form? Your own
+website's backend can create and read tickets directly via a REST API, so
+you can build a native "Contact Support" form/widget on your own site while
+Support Tool handles the ticket, email notifications, and the customer's
+reply portal behind the scenes.
+
+1. Generate a key at `/admin/api-keys` (admin only) — shown once, so copy it
+   immediately.
+2. Call the API from your **backend** (server-to-server — never from the
+   browser, or the key leaks to anyone who opens dev tools):
+
+```bash
+curl -X POST https://support.yourco.com/api/v1/tickets \
+  -H "Authorization: Bearer stk_live_xxxxxxxxxxxxxxxxxxxxxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "subject": "Cannot log in",
+    "description": "I get an error when I try to sign in.",
+    "category": "bug"
+  }'
+```
+
+The response includes a `portalUrl` — the customer gets it by email too, so
+they can track and reply to the ticket without any extra work on your end.
+
+Also available: `GET /api/v1/config` (valid category/priority/custom-field
+slugs), `GET /api/v1/tickets/:id` (status lookup), `GET
+/api/v1/tickets/:id/comments` (reply thread), and `GET
+/api/v1/tickets?email=` (a customer's ticket history) — enough to build
+"Submit a ticket" and "My Tickets" UI natively on your own site. Rate limit
+is 100 requests/min per key.
+
+An interactive API explorer (with a built-in "Test Request" client) is
+available in-app at `/admin/api-keys/docs`, and the OpenAPI 3.1 spec is
+downloadable at `GET /api/admin/api-keys/openapi` for Postman/Insomnia/etc.
+Full reference, all fields, and current limitations (no attachments or
+webhooks yet): [docs/api.md](docs/api.md).
+
+---
+
+## Backup & Restore
+
+Backups are not automatic — set them up yourself. You need to back up the
+**Postgres database** always, plus the **`support_tool_uploads` volume** if
+you're using local file storage (not needed if you're on `s3`/`r2`, which are
+already durable). See [docs/backup-and-restore.md](docs/backup-and-restore.md)
+for `pg_dump`/`pg_restore` commands, a cron example, and full disaster
+recovery steps.
+
+---
+
 ## Roles
 
 | Role | How to get it |
@@ -295,6 +352,7 @@ Feature specs and internal architecture docs live in [`docs/`](docs/):
 | Dashboard | [docs/dashboard.md](docs/dashboard.md) |
 | Database Schema | [docs/database-schema.md](docs/database-schema.md) |
 | Design System | [docs/design-system.md](docs/design-system.md) |
+| Backup & Restore | [docs/backup-and-restore.md](docs/backup-and-restore.md) |
 | Commands Reference | [docs/commands.md](docs/commands.md) |
 | Development Plan | [docs/development-plan.md](docs/development-plan.md) |
 
