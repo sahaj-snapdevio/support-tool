@@ -60,6 +60,8 @@ export async function GET(request: NextRequest) {
         request: {
           method: "POST",
           header: [{ key: "Content-Type", value: "application/json" }],
+          description:
+            "`customFields` keys are whatever YOUR admin configured at /admin/custom-fields — there's no fixed set. Run \"Get Config\" first to see the real keys/types for this instance, then replace the `\"//\"` placeholder below with real `\"<key>\": <value>` entries (e.g. `\"app\": \"Mobile App\"`). Required fields are only enforced once you include `customFields` at all — see docs/api.md.",
           body: {
             mode: "raw",
             raw: JSON.stringify(
@@ -69,7 +71,9 @@ export async function GET(request: NextRequest) {
                 subject: "Cannot log in",
                 description: "I get an error when I try to sign in.",
                 category: "bug",
-                customFields: { order_id: "A-1042" },
+                customFields: {
+                  "//": "Run \"Get Config\" to see this instance's real custom field keys, then replace this line — e.g. \"app\": \"Mobile App\"",
+                },
               },
               null,
               2

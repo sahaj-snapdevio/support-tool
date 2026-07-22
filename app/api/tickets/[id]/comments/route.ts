@@ -22,6 +22,7 @@ import { publishTicketCommentCreated } from "@/lib/realtime";
 import { isRichTextEmpty, richTextToPlainText } from "@/lib/rich-text";
 import { storage } from "@/lib/storage";
 import { isClosedStatusSlug } from "@/lib/ticket-config";
+import { resolveTicketPortalUrl } from "@/lib/tickets/portal-url";
 
 const ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
@@ -81,6 +82,7 @@ export async function POST(
         ticketNumber: number;
         subject: string;
         assignedAgentId: string | null;
+        apiKeyId: string | null;
       }
     | undefined;
 
@@ -114,6 +116,7 @@ export async function POST(
         ticketNumber: tickets.ticketNumber,
         subject: tickets.subject,
         assignedAgentId: tickets.assignedAgentId,
+        apiKeyId: tickets.apiKeyId,
       })
       .from(tickets)
       .where(and(eq(tickets.id, ticketId), eq(tickets.customerToken, token)))
@@ -157,6 +160,7 @@ export async function POST(
         ticketNumber: tickets.ticketNumber,
         subject: tickets.subject,
         assignedAgentId: tickets.assignedAgentId,
+        apiKeyId: tickets.apiKeyId,
       })
       .from(tickets)
       .where(eq(tickets.id, ticketId))
@@ -297,7 +301,11 @@ export async function POST(
 
     // Notify customer when an agent posts a public reply
     if (!isInternal && authorRole !== "customer" && ticketData) {
-      const ticketUrl = `${env.NEXT_PUBLIC_APP_URL}/ticket/${ticketId}?token=${ticketData.customerToken}`;
+      const ticketUrl = await resolveTicketPortalUrl(
+        ticketId,
+        ticketData.customerToken,
+        ticketData.apiKeyId
+      );
       ticketRepliedTemplate({
         customerName: ticketData.customerName,
         ticketNumber: ticketData.ticketNumber,
@@ -306,10 +314,10 @@ export async function POST(
         ticketUrl,
         agentName: authorName,
       })
-        .then(({ html, text }) =>
+        .then(({ subject: emailSubject, html, text }) =>
           enqueueEmail({
             to: ticketData!.customerEmail,
-            subject: `[#${ticketData!.ticketNumber}] New reply on your ticket — ${ticketData!.subject}`,
+            subject: emailSubject,
             html,
             text,
           })

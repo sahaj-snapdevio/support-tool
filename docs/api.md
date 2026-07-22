@@ -226,6 +226,12 @@ extra work on your end. Fetch `GET /api/v1/config` to get the current
 `category`/`priority` slugs — the set is deployment-specific and
 admin-configurable, so don't hardcode it.
 
+> **Your own support page instead of ours.** If this API key has a
+> "Customer portal URL" configured (`/admin/api-keys`), `portalUrl` here —
+> and every later email link for this ticket (agent replies, closing) —
+> points at your own site instead of Support Tool's built-in `/ticket/:id`
+> portal. No response shape change, just a different value.
+
 ## `GET /api/v1/tickets/:id`
 
 Look up a ticket's current status — e.g. to show "In Progress" on your own

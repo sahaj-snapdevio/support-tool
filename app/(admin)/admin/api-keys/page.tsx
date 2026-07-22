@@ -16,6 +16,7 @@ export default async function ApiKeysPage() {
           name: k.name,
           keyPrefix: k.keyPrefix,
           createdByName: k.createdByName,
+          portalUrlTemplate: k.portalUrlTemplate,
           lastUsedAt: k.lastUsedAt,
           revokedAt: k.revokedAt,
           createdAt: k.createdAt,

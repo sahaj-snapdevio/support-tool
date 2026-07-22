@@ -5,7 +5,6 @@ import { NextResponse } from "next/server";
 import { tickets } from "@/db/schema";
 import { requireApiKey } from "@/lib/api-auth";
 import { db } from "@/lib/db";
-import { env } from "@/lib/env";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { htmlToRichTextJson, textToRichTextJson } from "@/lib/rich-text";
 import {
@@ -177,7 +176,7 @@ export async function POST(request: NextRequest) {
       id: result.id,
       ticketNumber: result.ticketNumber,
       status: result.status,
-      portalUrl: `${env.NEXT_PUBLIC_APP_URL}/ticket/${result.id}?token=${result.customerToken}`,
+      portalUrl: result.portalUrl,
     },
     { status: 201 }
   );

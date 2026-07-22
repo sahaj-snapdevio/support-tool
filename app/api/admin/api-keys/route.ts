@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
       name: k.name,
       keyPrefix: k.keyPrefix,
       createdByName: k.createdByName,
+      portalUrlTemplate: k.portalUrlTemplate,
       lastUsedAt: k.lastUsedAt,
       revokedAt: k.revokedAt,
       createdAt: k.createdAt,
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
     return e as Response;
   }
 
-  let body: { name?: string } = {};
+  let body: { name?: string; portalUrlTemplate?: string } = {};
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest) {
     name,
     createdById: admin.id,
     createdByName: admin.name,
+    portalUrlTemplate: body.portalUrlTemplate?.trim() || null,
   });
 
   return NextResponse.json(
@@ -64,6 +66,7 @@ export async function POST(request: NextRequest) {
       id: record.id,
       name: record.name,
       keyPrefix: record.keyPrefix,
+      portalUrlTemplate: record.portalUrlTemplate,
       createdAt: record.createdAt,
       rawKey,
     },

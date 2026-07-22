@@ -1,5 +1,6 @@
 import { createElement } from "react";
 import { Button, Hr, Link, Section, Text } from "react-email";
+import { renderCustomEmail } from "@/lib/email-templates";
 import { EmailLayout, emailStyles } from "@/lib/email/components/layout";
 import { renderEmailTemplate } from "@/lib/email/renderer";
 import { getEmailBranding } from "@/lib/settings";
@@ -53,6 +54,20 @@ export async function myTicketsListTemplate(props: {
   ticketCount: number;
 }) {
   const { productName, logoUrl } = await getEmailBranding();
+
+  const custom = await renderCustomEmail({
+    type: "my_tickets_list",
+    brandName: productName,
+    logoUrl,
+    vars: {
+      listUrl: props.listUrl,
+      ticketCount: String(props.ticketCount),
+    },
+  });
+  if (custom) {
+    return { subject: custom.subject, html: custom.html, text: custom.text };
+  }
+
   const html = await renderEmailTemplate(
     createElement(MyTicketsListEmail, { ...props, productName, logoUrl })
   );
@@ -67,5 +82,5 @@ This link expires in 7 days.
 
 — ${productName}`;
 
-  return { html, text };
+  return { subject: "Your support tickets", html, text };
 }

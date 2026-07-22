@@ -7,13 +7,13 @@ import { requireApiKey } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { enqueueEmail } from "@/lib/email";
 import { ticketClosedTemplate } from "@/lib/email/templates/ticket-closed";
-import { env } from "@/lib/env";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
   getClosedStatus,
   getDefaultStatus,
   isClosedStatusSlug,
 } from "@/lib/ticket-config";
+import { resolveTicketPortalUrl } from "@/lib/tickets/portal-url";
 
 // PATCH /api/v1/tickets/:id/status — public API, authenticated with an API
 // key. Lets the ticket owner close or reopen their ticket. Bound to the
@@ -129,17 +129,21 @@ export async function PATCH(
       createdAt: now,
     });
 
-    const ticketUrl = `${env.NEXT_PUBLIC_APP_URL}/ticket/${ticketId}?token=${ticket.customerToken}`;
+    const ticketUrl = await resolveTicketPortalUrl(
+      ticketId,
+      ticket.customerToken,
+      ticket.apiKeyId
+    );
     ticketClosedTemplate({
       customerName: ticket.customerName,
       ticketNumber: ticket.ticketNumber,
       ticketSubject: ticket.subject,
       ticketUrl,
     })
-      .then(({ html, text }) =>
+      .then(({ subject: emailSubject, html, text }) =>
         enqueueEmail({
           to: ticket.customerEmail,
-          subject: `[#${ticket.ticketNumber}] Your ticket has been closed — ${ticket.subject}`,
+          subject: emailSubject,
           html,
           text,
         })

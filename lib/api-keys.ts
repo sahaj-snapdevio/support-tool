@@ -34,6 +34,7 @@ export async function createApiKey(input: {
   name: string;
   createdById: string;
   createdByName: string;
+  portalUrlTemplate?: string | null;
 }): Promise<{ record: ApiKey; rawKey: string }> {
   const { raw, prefix, hash } = generateApiKey();
   const [record] = await db
@@ -45,6 +46,7 @@ export async function createApiKey(input: {
       keyHash: hash,
       createdById: input.createdById,
       createdByName: input.createdByName,
+      portalUrlTemplate: input.portalUrlTemplate ?? null,
       createdAt: new Date(),
     })
     .returning();
@@ -53,6 +55,23 @@ export async function createApiKey(input: {
 
 export async function listApiKeys(): Promise<ApiKey[]> {
   return db.select().from(apiKeys).orderBy(desc(apiKeys.createdAt));
+}
+
+/** Partial update — only fields present in `updates` are changed. */
+export async function updateApiKey(
+  id: string,
+  updates: { name?: string; portalUrlTemplate?: string | null }
+): Promise<ApiKey | undefined> {
+  if (Object.keys(updates).length === 0) {
+    const [row] = await db.select().from(apiKeys).where(eq(apiKeys.id, id)).limit(1);
+    return row;
+  }
+  const [row] = await db
+    .update(apiKeys)
+    .set(updates)
+    .where(eq(apiKeys.id, id))
+    .returning();
+  return row;
 }
 
 export async function revokeApiKey(id: string): Promise<boolean> {

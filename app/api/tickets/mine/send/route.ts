@@ -62,10 +62,10 @@ export async function POST(request: NextRequest) {
   if (customerTickets.length > 0) {
     const listUrl = `${env.NEXT_PUBLIC_APP_URL}/my-tickets/${signEmailToken(email)}`;
     myTicketsListTemplate({ listUrl, ticketCount: customerTickets.length })
-      .then(({ html, text }) =>
+      .then(({ subject, html, text }) =>
         enqueueEmail({
           to: email,
-          subject: "Your support tickets",
+          subject,
           html,
           text,
         })

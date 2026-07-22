@@ -1,5 +1,6 @@
 import { createElement } from "react";
 import { Button, Hr, Link, Section, Text } from "react-email";
+import { renderCustomEmail } from "@/lib/email-templates";
 import { EmailLayout, emailStyles } from "@/lib/email/components/layout";
 import { renderEmailTemplate } from "@/lib/email/renderer";
 import { getEmailBranding } from "@/lib/settings";
@@ -93,6 +94,24 @@ export async function ticketRepliedTemplate(props: {
   const { productName, logoUrl } = await getEmailBranding();
   const replyPreview = props.replyContent.slice(0, 500);
 
+  const custom = await renderCustomEmail({
+    type: "ticket_replied",
+    brandName: productName,
+    logoUrl,
+    vars: {
+      customerName: props.customerName,
+      ticketNumber: String(props.ticketNumber),
+      ticketSubject: props.ticketSubject,
+      agentName: props.agentName,
+      replyPreview,
+      ticketUrl: props.ticketUrl,
+    },
+  });
+  const defaultSubject = `[#${props.ticketNumber}] New reply on your ticket — ${props.ticketSubject}`;
+  if (custom) {
+    return { subject: custom.subject, html: custom.html, text: custom.text };
+  }
+
   const html = await renderEmailTemplate(
     createElement(TicketRepliedEmail, {
       customerName: props.customerName,
@@ -120,5 +139,5 @@ View your ticket and reply: ${props.ticketUrl}
 
 — ${productName}`;
 
-  return { html, text };
+  return { subject: defaultSubject, html, text };
 }

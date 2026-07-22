@@ -7,9 +7,9 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { enqueueEmail } from "@/lib/email";
 import { ticketClosedTemplate } from "@/lib/email/templates/ticket-closed";
-import { env } from "@/lib/env";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getClosedStatus, isClosedStatusSlug } from "@/lib/ticket-config";
+import { resolveTicketPortalUrl } from "@/lib/tickets/portal-url";
 
 export async function PATCH(
   request: NextRequest,
@@ -121,17 +121,21 @@ export async function PATCH(
   });
 
   // Notify customer on close
-  const ticketUrl = `${env.NEXT_PUBLIC_APP_URL}/ticket/${ticketId}?token=${ticket.customerToken}`;
+  const ticketUrl = await resolveTicketPortalUrl(
+    ticketId,
+    ticket.customerToken,
+    ticket.apiKeyId
+  );
   ticketClosedTemplate({
     customerName: ticket.customerName,
     ticketNumber: ticket.ticketNumber,
     ticketSubject: ticket.subject,
     ticketUrl,
   })
-    .then(({ html, text }) =>
+    .then(({ subject: emailSubject, html, text }) =>
       enqueueEmail({
         to: ticket.customerEmail,
-        subject: `[#${ticket.ticketNumber}] Your ticket has been closed — ${ticket.subject}`,
+        subject: emailSubject,
         html,
         text,
       })

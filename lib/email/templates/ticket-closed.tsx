@@ -1,5 +1,6 @@
 import { createElement } from "react";
 import { Button, Hr, Link, Section, Text } from "react-email";
+import { renderCustomEmail } from "@/lib/email-templates";
 import { EmailLayout, emailStyles } from "@/lib/email/components/layout";
 import { renderEmailTemplate } from "@/lib/email/renderer";
 import { getEmailBranding } from "@/lib/settings";
@@ -63,6 +64,23 @@ export async function ticketClosedTemplate(props: {
   ticketUrl: string;
 }) {
   const { productName, logoUrl } = await getEmailBranding();
+
+  const custom = await renderCustomEmail({
+    type: "ticket_closed",
+    brandName: productName,
+    logoUrl,
+    vars: {
+      customerName: props.customerName,
+      ticketNumber: String(props.ticketNumber),
+      ticketSubject: props.ticketSubject,
+      ticketUrl: props.ticketUrl,
+    },
+  });
+  const defaultSubject = `[#${props.ticketNumber}] Your ticket has been closed — ${props.ticketSubject}`;
+  if (custom) {
+    return { subject: custom.subject, html: custom.html, text: custom.text };
+  }
+
   const html = await renderEmailTemplate(
     createElement(TicketClosedEmail, { ...props, productName, logoUrl })
   );
@@ -77,5 +95,5 @@ If you still need help, you can reopen the ticket here: ${props.ticketUrl}
 
 — ${productName}`;
 
-  return { html, text };
+  return { subject: defaultSubject, html, text };
 }

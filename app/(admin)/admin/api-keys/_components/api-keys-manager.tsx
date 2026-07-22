@@ -6,6 +6,7 @@ import {
   CopyIcon,
   DownloadSimpleIcon,
   KeyIcon,
+  PencilSimpleIcon,
   PlusIcon,
   TrashIcon,
   WarningCircleIcon,
@@ -33,6 +34,7 @@ interface ApiKeyRow {
   keyPrefix: string;
   lastUsedAt: Date | null;
   name: string;
+  portalUrlTemplate: string | null;
   revokedAt: Date | null;
 }
 
@@ -44,6 +46,7 @@ export function ApiKeysManager({ initialKeys }: Props) {
   const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
   const [name, setName] = useState("");
+  const [portalUrlTemplate, setPortalUrlTemplate] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
@@ -51,8 +54,15 @@ export function ApiKeysManager({ initialKeys }: Props) {
   const [revokeTarget, setRevokeTarget] = useState<ApiKeyRow | null>(null);
   const [revoking, setRevoking] = useState(false);
 
+  const [editTarget, setEditTarget] = useState<ApiKeyRow | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPortalUrlTemplate, setEditPortalUrlTemplate] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
   function openAdd() {
     setName("");
+    setPortalUrlTemplate("");
     setError(null);
     setCreatedKey(null);
     setCopied(false);
@@ -74,7 +84,7 @@ export function ApiKeysManager({ initialKeys }: Props) {
       const res = await fetch("/api/admin/api-keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, portalUrlTemplate }),
       });
       const data = (await res.json()) as { error?: string; rawKey?: string };
       if (!res.ok) {
@@ -86,6 +96,42 @@ export function ApiKeysManager({ initialKeys }: Props) {
       setError("Network error.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  function openEdit(key: ApiKeyRow) {
+    setEditTarget(key);
+    setEditName(key.name);
+    setEditPortalUrlTemplate(key.portalUrlTemplate ?? "");
+    setEditError(null);
+  }
+
+  async function handleEditSave() {
+    if (!editTarget) {
+      return;
+    }
+    setEditError(null);
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/admin/api-keys/${editTarget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editName,
+          portalUrlTemplate: editPortalUrlTemplate,
+        }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setEditError(data.error ?? "Failed to save.");
+        return;
+      }
+      setEditTarget(null);
+      router.refresh();
+    } catch {
+      setEditError("Network error.");
+    } finally {
+      setEditSaving(false);
     }
   }
 
@@ -228,17 +274,27 @@ export function ApiKeysManager({ initialKeys }: Props) {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      {!k.revokedAt && (
+                      <div className="flex gap-2">
                         <Button
-                          className="h-8 border-red-200 text-red-600 hover:bg-red-50 rounded-md"
-                          onClick={() => setRevokeTarget(k)}
+                          className="h-8 border-border text-foreground hover:bg-accent rounded-md"
+                          onClick={() => openEdit(k)}
                           size="sm"
                           variant="outline"
                         >
-                          <TrashIcon className="size-3.5" />
-                          Revoke
+                          <PencilSimpleIcon className="size-3.5" />
                         </Button>
-                      )}
+                        {!k.revokedAt && (
+                          <Button
+                            className="h-8 border-red-200 text-red-600 hover:bg-red-50 rounded-md"
+                            onClick={() => setRevokeTarget(k)}
+                            size="sm"
+                            variant="outline"
+                          >
+                            <TrashIcon className="size-3.5" />
+                            Revoke
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -307,6 +363,26 @@ export function ApiKeysManager({ initialKeys }: Props) {
                   value={name}
                 />
               </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">
+                  Customer portal URL{" "}
+                  <span className="text-muted-foreground font-normal">
+                    (optional)
+                  </span>
+                </Label>
+                <Input
+                  className="rounded-md font-mono text-xs"
+                  onChange={(e) => setPortalUrlTemplate(e.target.value)}
+                  placeholder="https://myapp.com/support/{{ticketId}}?token={{token}}"
+                  value={portalUrlTemplate}
+                />
+                <p className="text-xs text-muted-foreground">
+                  If your own site has its own support page, tickets created
+                  through this key link there instead of Support Tool's
+                  portal. Placeholders: <code>{"{{ticketId}}"}</code>,{" "}
+                  <code>{"{{token}}"}</code>.
+                </p>
+              </div>
               {error && <p className="text-xs text-red-600">{error}</p>}
               <DialogFooter className="gap-2">
                 <Button
@@ -327,6 +403,68 @@ export function ApiKeysManager({ initialKeys }: Props) {
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit dialog */}
+      <Dialog
+        onOpenChange={(open) => !open && setEditTarget(null)}
+        open={editTarget !== null}
+      >
+        <DialogContent className="rounded-xl max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Edit API Key</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              The key itself never changes — only its name and portal link.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">
+              Name
+            </Label>
+            <Input
+              className="rounded-md"
+              onChange={(e) => setEditName(e.target.value)}
+              value={editName}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">
+              Customer portal URL{" "}
+              <span className="text-muted-foreground font-normal">
+                (optional)
+              </span>
+            </Label>
+            <Input
+              className="rounded-md font-mono text-xs"
+              onChange={(e) => setEditPortalUrlTemplate(e.target.value)}
+              placeholder="https://myapp.com/support/{{ticketId}}?token={{token}}"
+              value={editPortalUrlTemplate}
+            />
+            <p className="text-xs text-muted-foreground">
+              Leave blank to use Support Tool's own customer portal.
+              Placeholders: <code>{"{{ticketId}}"}</code>,{" "}
+              <code>{"{{token}}"}</code>.
+            </p>
+          </div>
+          {editError && <p className="text-xs text-red-600">{editError}</p>}
+          <DialogFooter className="gap-2">
+            <Button
+              className="flex-1 border-border text-foreground rounded-md"
+              disabled={editSaving}
+              onClick={() => setEditTarget(null)}
+              variant="outline"
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md"
+              disabled={editSaving || !editName.trim()}
+              onClick={handleEditSave}
+            >
+              {editSaving ? "Saving…" : "Save Changes"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

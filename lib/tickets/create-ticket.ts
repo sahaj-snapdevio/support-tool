@@ -16,6 +16,7 @@ import { publishPushToUsers } from "@/lib/push";
 import { publishTicketCreated } from "@/lib/realtime";
 import { richTextToPlainText } from "@/lib/rich-text";
 import { storage } from "@/lib/storage";
+import { resolveTicketPortalUrl } from "@/lib/tickets/portal-url";
 import {
   getDefaultPriority,
   getDefaultStatus,
@@ -62,6 +63,7 @@ export type CreateTicketResult =
       ticketNumber: number;
       customerToken: string;
       status: string;
+      portalUrl: string;
     }
   | { ok: false; error: string; httpStatus: number };
 
@@ -271,7 +273,11 @@ export async function createTicketFromSubmission(
     });
 
     // Enqueue ticket.created email (non-blocking)
-    const ticketUrl = `${env.NEXT_PUBLIC_APP_URL}/ticket/${ticketId}?token=${customerToken}`;
+    const ticketUrl = await resolveTicketPortalUrl(
+      ticketId,
+      customerToken,
+      input.apiKeyId ?? null
+    );
     const myTicketsUrl = `${env.NEXT_PUBLIC_APP_URL}/my-tickets`;
     ticketCreatedTemplate({
       customerName: name,
@@ -280,10 +286,10 @@ export async function createTicketFromSubmission(
       ticketUrl,
       myTicketsUrl,
     })
-      .then(({ html, text }) =>
+      .then(({ subject: emailSubject, html, text }) =>
         enqueueEmail({
           to: email,
-          subject: `[#${inserted.ticketNumber}] Your ticket has been received — ${subject}`,
+          subject: emailSubject,
           html,
           text,
         })
@@ -330,6 +336,7 @@ export async function createTicketFromSubmission(
       ticketNumber: inserted.ticketNumber,
       customerToken,
       status,
+      portalUrl: ticketUrl,
     };
   } catch (err) {
     for (const a of attachments) {

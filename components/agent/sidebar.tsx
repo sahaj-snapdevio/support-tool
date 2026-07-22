@@ -3,6 +3,7 @@
 import {
   ChatTextIcon,
   ClockCounterClockwiseIcon,
+  EnvelopeSimpleIcon,
   KeyIcon,
   ListChecksIcon,
   PaintBrushIcon,
@@ -41,6 +42,11 @@ const adminItems = [
     href: "/admin/custom-fields",
     label: "Custom Fields",
     icon: ListChecksIcon,
+  },
+  {
+    href: "/admin/email-templates",
+    label: "Email Templates",
+    icon: EnvelopeSimpleIcon,
   },
   {
     href: "/admin/audit-log",

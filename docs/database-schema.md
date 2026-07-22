@@ -121,9 +121,24 @@ api_keys
 ├── key_hash          text NOT NULL UNIQUE    ← sha256 of the full key; the raw key is never stored
 ├── created_by_id     text → user.id (SET NULL on delete), nullable
 ├── created_by_name   text NOT NULL
+├── portal_url_template text, nullable  ← e.g. "https://myapp.com/support/{{ticketId}}?token={{token}}"; tickets created through this key link here instead of Support Tool's own portal
 ├── last_used_at      timestamp with time zone, nullable
 ├── revoked_at        timestamp with time zone, nullable   ← soft revoke, row is kept for audit history
 └── created_at        timestamp with time zone NOT NULL DEFAULT NOW()
+```
+
+### `email_templates`
+
+Admin-editable overrides for the 4 customer-facing notification emails (ticket created/replied/closed, my-tickets-list). One row per type, created on first save via `/admin/email-templates` — an absent row (or null columns) means "use the built-in default." See `docs/email-notifications.md`'s "Customizing Email Templates" section.
+
+```
+email_templates
+├── id            text PK (cuid2)
+├── type          text NOT NULL UNIQUE   ← "ticket_created" | "ticket_replied" | "ticket_closed" | "my_tickets_list"
+├── subject       text, nullable         ← merge-tag template string; null = default subject
+├── body          text, nullable         ← Tiptap JSON, same storage convention as tickets.description; null = default body
+├── created_at    timestamp with time zone NOT NULL DEFAULT NOW()
+└── updated_at    timestamp with time zone NOT NULL DEFAULT NOW()
 ```
 
 ### `tickets`
@@ -327,6 +342,7 @@ db/schema/
 ├── ticket-config.ts   ← ticket_statuses, ticket_categories, ticket_priorities
 ├── tags.ts            ← tags, ticket_tags
 ├── custom-fields.ts   ← ticket_custom_fields, ticket_custom_field_values
+├── email-templates.ts ← email_templates
 ├── user-preferences.ts ← user_ticket_table_prefs
 ├── api-keys.ts        ← api_keys
 ├── settings.ts        ← platform_settings

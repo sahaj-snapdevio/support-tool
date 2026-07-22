@@ -14,6 +14,12 @@ export const apiKeys = pgTable("api_keys", {
     onDelete: "set null",
   }),
   createdByName: text("created_by_name").notNull(),
+  // Optional URL template for tickets created through this key, e.g.
+  // "https://myapp.com/support/{{ticketId}}?token={{token}}" — lets an
+  // integrator's own support page replace Support Tool's default customer
+  // portal link in emails and the create-ticket API response. Null = use
+  // the default /ticket/:id portal link.
+  portalUrlTemplate: text("portal_url_template"),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   // Soft revoke — the row stays for audit history (tickets.apiKeyId keeps
   // resolving) instead of being deleted.

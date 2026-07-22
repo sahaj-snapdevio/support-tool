@@ -13,3 +13,4 @@ export * from "@/db/schema/canned-responses";
 export * from "@/db/schema/tags";
 export * from "@/db/schema/user-preferences";
 export * from "@/db/schema/custom-fields";
+export * from "@/db/schema/email-templates";
