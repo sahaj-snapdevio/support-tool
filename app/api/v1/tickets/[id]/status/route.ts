@@ -2,7 +2,7 @@ import { createId } from "@paralleldrive/cuid2";
 import { eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { ticketActivity, tickets } from "@/db/schema";
+import { customers, ticketActivity, tickets } from "@/db/schema";
 import { requireApiKey } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { enqueueEmail } from "@/lib/email";
@@ -82,7 +82,16 @@ export async function PATCH(
   if (!ticket) {
     return NextResponse.json({ error: "Ticket not found." }, { status: 404 });
   }
-  if (ticket.customerEmail.trim().toLowerCase() !== email) {
+
+  const [customer] = await db
+    .select({ name: customers.name, email: customers.email })
+    .from(customers)
+    .where(eq(customers.id, ticket.customerId))
+    .limit(1);
+  if (!customer) {
+    return NextResponse.json({ error: "Ticket not found." }, { status: 404 });
+  }
+  if (customer.email.trim().toLowerCase() !== email) {
     return NextResponse.json(
       { error: "This ticket does not belong to that email." },
       { status: 403 }
@@ -130,7 +139,7 @@ export async function PATCH(
       id: createId(),
       ticketId,
       actorId: null,
-      actorName: ticket.customerName,
+      actorName: customer.name,
       actorRole: "customer",
       action: "ticket_closed",
       metadata: { from: previousStatus, to: closedStatus.slug },
@@ -143,14 +152,14 @@ export async function PATCH(
       ticket.apiKeyId
     );
     ticketClosedTemplate({
-      customerName: ticket.customerName,
+      customerName: customer.name,
       ticketNumber: ticket.ticketNumber,
       ticketSubject: ticket.subject,
       ticketUrl,
     })
       .then(({ subject: emailSubject, html, text }) =>
         enqueueEmail({
-          to: ticket.customerEmail,
+          to: customer.email,
           subject: emailSubject,
           html,
           text,
@@ -200,7 +209,7 @@ export async function PATCH(
     id: createId(),
     ticketId,
     actorId: null,
-    actorName: ticket.customerName,
+    actorName: customer.name,
     actorRole: "customer",
     action: "ticket_reopened",
     metadata: { from: previousStatus, to: defaultStatus.slug },

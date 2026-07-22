@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { ADMIN_ROLE } from "@/config/platform";
-import { ticketActivity, ticketAttachments, tickets } from "@/db/schema";
+import { customers, ticketActivity, ticketAttachments, tickets } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -46,14 +46,16 @@ export async function GET(
       category: tickets.category,
       status: tickets.status,
       priority: tickets.priority,
-      customerName: tickets.customerName,
-      customerEmail: tickets.customerEmail,
+      customerId: tickets.customerId,
+      customerName: customers.name,
+      customerEmail: customers.email,
       assignedAgentId: tickets.assignedAgentId,
       closedAt: tickets.closedAt,
       createdAt: tickets.createdAt,
       updatedAt: tickets.updatedAt,
     })
     .from(tickets)
+    .innerJoin(customers, eq(tickets.customerId, customers.id))
     .where(eq(tickets.id, id))
     .limit(1);
 

@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { ADMIN_ROLE, AGENT_ROLE } from "@/config/platform";
 import {
+  customers,
   ticketActivity,
   ticketAttachments,
   ticketComments,
@@ -201,8 +202,8 @@ export async function POST(
   const [ticket] = await db
     .select({
       status: tickets.status,
-      customerName: tickets.customerName,
-      customerEmail: tickets.customerEmail,
+      customerName: customers.name,
+      customerEmail: customers.email,
       ticketNumber: tickets.ticketNumber,
       subject: tickets.subject,
       assignedAgentId: tickets.assignedAgentId,
@@ -210,6 +211,7 @@ export async function POST(
       waitingSince: tickets.waitingSince,
     })
     .from(tickets)
+    .innerJoin(customers, eq(tickets.customerId, customers.id))
     .where(eq(tickets.id, ticketId))
     .limit(1);
   if (!ticket) {

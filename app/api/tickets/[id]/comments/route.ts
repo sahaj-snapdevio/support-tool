@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { ADMIN_ROLE, AGENT_ROLE } from "@/config/platform";
 import {
+  customers,
   ticketActivity,
   ticketAttachments,
   ticketComments,
@@ -114,8 +115,8 @@ export async function POST(
     const [ticket] = await db
       .select({
         status: tickets.status,
-        customerName: tickets.customerName,
-        customerEmail: tickets.customerEmail,
+        customerName: customers.name,
+        customerEmail: customers.email,
         customerToken: tickets.customerToken,
         ticketNumber: tickets.ticketNumber,
         subject: tickets.subject,
@@ -126,6 +127,7 @@ export async function POST(
         firstRespondedAt: tickets.firstRespondedAt,
       })
       .from(tickets)
+      .innerJoin(customers, eq(tickets.customerId, customers.id))
       .where(and(eq(tickets.id, ticketId), eq(tickets.customerToken, token)))
       .limit(1);
     if (!ticket) {
@@ -161,8 +163,8 @@ export async function POST(
     const [ticket] = await db
       .select({
         status: tickets.status,
-        customerName: tickets.customerName,
-        customerEmail: tickets.customerEmail,
+        customerName: customers.name,
+        customerEmail: customers.email,
         customerToken: tickets.customerToken,
         ticketNumber: tickets.ticketNumber,
         subject: tickets.subject,
@@ -173,6 +175,7 @@ export async function POST(
         firstRespondedAt: tickets.firstRespondedAt,
       })
       .from(tickets)
+      .innerJoin(customers, eq(tickets.customerId, customers.id))
       .where(eq(tickets.id, ticketId))
       .limit(1);
     if (!ticket) {

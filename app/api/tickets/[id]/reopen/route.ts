@@ -2,7 +2,7 @@ import { createId } from "@paralleldrive/cuid2";
 import { and, eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { ticketActivity, tickets } from "@/db/schema";
+import { customers, ticketActivity, tickets } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
@@ -24,7 +24,7 @@ export async function PATCH(
 
   const now = new Date();
 
-  let actorName: string;
+  let actorName: string | undefined;
   let actorRole: string;
   let actorId: string | undefined;
 
@@ -64,12 +64,10 @@ export async function PATCH(
         and(eq(tickets.id, ticketId), eq(tickets.customerToken, body.token))
       )
       .limit(1);
-    if (ticket) {
-      actorName = ticket.customerName;
-      actorRole = "customer";
-    } else {
+    if (!ticket) {
       return NextResponse.json({ error: "Ticket not found." }, { status: 404 });
     }
+    actorRole = "customer";
   } else {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
@@ -77,6 +75,19 @@ export async function PATCH(
   if (!ticket) {
     return NextResponse.json({ error: "Ticket not found." }, { status: 404 });
   }
+
+  const [customer] = await db
+    .select({ name: customers.name, email: customers.email })
+    .from(customers)
+    .where(eq(customers.id, ticket.customerId))
+    .limit(1);
+  if (!customer) {
+    return NextResponse.json({ error: "Ticket not found." }, { status: 404 });
+  }
+  if (!actorName) {
+    actorName = customer.name;
+  }
+
   if (!(await isClosedStatusSlug(ticket.status))) {
     return NextResponse.json(
       { error: "Ticket is not closed." },

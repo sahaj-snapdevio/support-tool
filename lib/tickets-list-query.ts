@@ -9,6 +9,7 @@ import {
   or,
   type SQL,
 } from "drizzle-orm";
+import { customers } from "@/db/schema/customers";
 import { tickets } from "@/db/schema/tickets";
 
 /** Everything the tickets list page's filters/sort/pagination can put in the URL. */
@@ -68,7 +69,10 @@ export function parseTicketListSort(params: TicketListSearchParams): {
 }
 
 /** Same WHERE-clause semantics used by the tickets list page — kept in one
- * place so the ticket detail page's prev/next lookup filters identically. */
+ * place so the ticket detail page's prev/next lookup filters identically.
+ * The customer name/email search conditions reference the `customers`
+ * table, so every caller's query must `.innerJoin(customers, eq(tickets.customerId, customers.id))`
+ * before applying this where clause. */
 export function buildTicketsWhereClause(
   params: TicketListSearchParams,
   agentId: string
@@ -92,8 +96,8 @@ export function buildTicketsWhereClause(
     const numSearch = Number.parseInt(search.replace("#", ""), 10);
     const textConditions = [
       ilike(tickets.subject, `%${search}%`),
-      ilike(tickets.customerName, `%${search}%`),
-      ilike(tickets.customerEmail, `%${search}%`),
+      ilike(customers.name, `%${search}%`),
+      ilike(customers.email, `%${search}%`),
     ];
     if (!Number.isNaN(numSearch)) {
       textConditions.push(eq(tickets.ticketNumber, numSearch) as never);

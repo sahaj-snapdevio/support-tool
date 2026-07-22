@@ -10,6 +10,7 @@ import { TicketsListRealtime } from "@/components/agent/tickets-list-realtime";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ADMIN_ROLE, AGENT_ROLE } from "@/config/platform";
 import { user } from "@/db/schema/auth";
+import { customers } from "@/db/schema/customers";
 import { ticketActivity, tickets } from "@/db/schema/tickets";
 import { requireAgent } from "@/lib/authz";
 import { db } from "@/lib/db";
@@ -197,6 +198,7 @@ async function TicketsResults({
   const [{ total }] = await db
     .select({ total: count() })
     .from(tickets)
+    .innerJoin(customers, eq(tickets.customerId, customers.id))
     .where(whereClause);
 
   const rows = await db
@@ -207,7 +209,7 @@ async function TicketsResults({
       status: tickets.status,
       category: tickets.category,
       priority: tickets.priority,
-      customerName: tickets.customerName,
+      customerName: customers.name,
       assignedAgentId: tickets.assignedAgentId,
       assignedAgentName: user.name,
       createdAt: tickets.createdAt,
@@ -219,6 +221,7 @@ async function TicketsResults({
       slaActiveSeconds: tickets.slaActiveSeconds,
     })
     .from(tickets)
+    .innerJoin(customers, eq(tickets.customerId, customers.id))
     .leftJoin(user, eq(tickets.assignedAgentId, user.id))
     .where(whereClause)
     .orderBy(

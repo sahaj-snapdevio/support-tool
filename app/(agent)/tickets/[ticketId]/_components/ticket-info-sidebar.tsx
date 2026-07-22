@@ -31,6 +31,7 @@ import type {
 } from "@/lib/ticket-config";
 import { COLOR_BADGE, formatTicketDateTime } from "@/lib/tickets";
 import { getInitials } from "@/lib/utils";
+import { CustomerProfilePopover } from "./customer-profile-popover";
 import { SidebarCard } from "./sidebar-card";
 import { TicketCustomFields } from "./ticket-custom-fields";
 import { TicketTags } from "./ticket-tags";
@@ -64,6 +65,7 @@ interface Props {
     status: string;
     category: string;
     priority: string;
+    customerId: string;
     customerName: string;
     customerEmail: string;
     assignedAgentId: string | null;
@@ -443,19 +445,29 @@ export function TicketInfoSidebar({
 
       {/* Customer Info */}
       <SidebarCard title="Customer" {...accordionProps("customer")}>
-        <div className="flex items-start gap-2.5">
-          <div className="size-7 rounded-full bg-accent border border-border flex items-center justify-center text-xs font-medium text-foreground shrink-0">
-            {getInitials(ticket.customerName)}
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">
-              {ticket.customerName}
-            </p>
-            <p className="text-xs text-muted-foreground truncate">
-              {ticket.customerEmail}
-            </p>
-          </div>
-        </div>
+        <CustomerProfilePopover
+          currentTicketId={ticket.id}
+          customerEmail={ticket.customerEmail}
+          customerId={ticket.customerId}
+          customerName={ticket.customerName}
+        >
+          <button
+            className="flex items-start gap-2.5 w-full text-left rounded-md -m-1 p-1 hover:bg-accent transition-colors"
+            type="button"
+          >
+            <div className="size-7 rounded-full bg-accent border border-border flex items-center justify-center text-xs font-medium text-foreground shrink-0">
+              {getInitials(ticket.customerName)}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground truncate">
+                {ticket.customerName}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {ticket.customerEmail}
+              </p>
+            </div>
+          </button>
+        </CustomerProfilePopover>
       </SidebarCard>
 
       {/* Assigned Agent */}

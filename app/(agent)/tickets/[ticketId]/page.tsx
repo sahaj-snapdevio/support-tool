@@ -14,6 +14,7 @@ import { RichTextContent } from "@/components/common/rich-text-content";
 import { ScrollToBottomOnMount } from "@/components/common/scroll-to-bottom-on-mount";
 import { ADMIN_ROLE } from "@/config/platform";
 import { user } from "@/db/schema/auth";
+import { customers } from "@/db/schema/customers";
 import {
   ticketActivity,
   ticketAttachments,
@@ -44,6 +45,7 @@ import {
 } from "@/lib/tickets-list-query";
 import { getInitials } from "@/lib/utils";
 import { AgentReplyForm } from "./_components/agent-reply-form";
+import { CustomerProfilePopover } from "./_components/customer-profile-popover";
 import { TicketInfoSidebar } from "./_components/ticket-info-sidebar";
 
 interface Props {
@@ -88,6 +90,7 @@ async function getAdjacentTicketId(
   const [row] = await db
     .select({ id: tickets.id })
     .from(tickets)
+    .innerJoin(customers, eq(tickets.customerId, customers.id))
     .where(where)
     .orderBy(
       ...(sortKey === "id"
@@ -156,8 +159,9 @@ export default async function AgentTicketDetailPage({
       category: tickets.category,
       status: tickets.status,
       priority: tickets.priority,
-      customerName: tickets.customerName,
-      customerEmail: tickets.customerEmail,
+      customerId: tickets.customerId,
+      customerName: customers.name,
+      customerEmail: customers.email,
       assignedAgentId: tickets.assignedAgentId,
       closedAt: tickets.closedAt,
       createdAt: tickets.createdAt,
@@ -168,6 +172,7 @@ export default async function AgentTicketDetailPage({
       slaActiveSeconds: tickets.slaActiveSeconds,
     })
     .from(tickets)
+    .innerJoin(customers, eq(tickets.customerId, customers.id))
     .where(eq(tickets.id, ticketId))
     .limit(1);
 
@@ -336,9 +341,19 @@ export default async function AgentTicketDetailPage({
 
             {/* Original description — customer's first message (left) */}
             <div className="flex justify-start gap-2">
-              <div className="size-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-medium shrink-0">
-                {getInitials(ticket.customerName)}
-              </div>
+              <CustomerProfilePopover
+                currentTicketId={ticket.id}
+                customerEmail={ticket.customerEmail}
+                customerId={ticket.customerId}
+                customerName={ticket.customerName}
+              >
+                <button
+                  className="size-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-medium shrink-0"
+                  type="button"
+                >
+                  {getInitials(ticket.customerName)}
+                </button>
+              </CustomerProfilePopover>
               <div className="min-w-0 max-w-[85%] wrap-break-word bg-accent rounded-xl border border-border p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-sm font-medium text-foreground">
@@ -382,14 +397,24 @@ export default async function AgentTicketDetailPage({
               const isCustomer = comment.authorRole === "customer";
               const commentAttachments =
                 attachmentsByComment.get(comment.id) ?? [];
-              const avatar = (
-                <div
-                  className={`size-7 rounded-full flex items-center justify-center text-xs font-medium shrink-0 ${
-                    isCustomer
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-stone text-white"
-                  }`}
+              const avatarClassName = `size-7 rounded-full flex items-center justify-center text-xs font-medium shrink-0 ${
+                isCustomer
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-stone text-white"
+              }`;
+              const avatar = isCustomer ? (
+                <CustomerProfilePopover
+                  currentTicketId={ticket.id}
+                  customerEmail={ticket.customerEmail}
+                  customerId={ticket.customerId}
+                  customerName={ticket.customerName}
                 >
+                  <button className={avatarClassName} type="button">
+                    {getInitials(comment.authorName)}
+                  </button>
+                </CustomerProfilePopover>
+              ) : (
+                <div className={avatarClassName}>
                   {getInitials(comment.authorName)}
                 </div>
               );

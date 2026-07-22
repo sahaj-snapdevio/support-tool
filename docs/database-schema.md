@@ -10,9 +10,23 @@ All IDs are **cuid2** strings (from `@paralleldrive/cuid2`), except `ticket_numb
 
 ## Tables
 
+### `customers`
+
+The customer identity referenced by `tickets.customer_id`. Created (find-or-create by lowercased email) the first time someone submits a ticket — see `lib/customers.ts`'s `findOrCreateCustomer()`, called from `lib/tickets/create-ticket.ts`.
+
+```
+customers
+├── id            text PK (cuid2)
+├── name          text NOT NULL      ← set at creation; not overwritten by later tickets from the same email
+├── email         text NOT NULL UNIQUE (lowercased)
+├── note          text, nullable     ← free-form agent note, editable from the ticket detail customer popover
+├── created_at    timestamp with time zone NOT NULL DEFAULT NOW()
+└── updated_at    timestamp with time zone NOT NULL DEFAULT NOW()
+```
+
 ### `user` (managed by Better Auth)
 
-Stores agents and admins only. Customers are not users.
+Stores agents and admins only. Customers are not users — see `customers` above.
 
 ```
 user
@@ -175,8 +189,7 @@ tickets
 ├── category          text NOT NULL             ← slug from ticket_categories (e.g. 'bug')
 ├── status            text NOT NULL DEFAULT 'open'   ← slug from ticket_statuses (e.g. 'open')
 ├── priority          text NOT NULL DEFAULT 'normal' ← slug from ticket_priorities
-├── customer_name     text NOT NULL
-├── customer_email    text NOT NULL
+├── customer_id       text NOT NULL → customers.id   ← name/email are read via join, not stored on the ticket
 ├── customer_token    text NOT NULL UNIQUE (cuid2)   ← per-ticket secret for customer access
 ├── assigned_agent_id text → user.id (SET NULL on delete), nullable
 ├── awaiting_reply    boolean NOT NULL DEFAULT false ← true when the latest public message is from the customer
@@ -192,7 +205,7 @@ tickets
 
 Indexes:
 - ticket_number (unique)
-- customer_email (for "my tickets" lookup)
+- customer_id (for "my tickets" lookup and the customer profile popover's ticket history)
 - status
 - assigned_agent_id
 - created_at
@@ -362,6 +375,7 @@ These are provided by the KROVA scaffold and do not need to be created:
 ```
 db/schema/
 ├── auth.ts            ← user, session, account, verification (Better Auth managed)
+├── customers.ts       ← customers
 ├── tickets.ts         ← tickets, ticket_comments, ticket_attachments, ticket_activity
 ├── ticket-config.ts   ← ticket_statuses, ticket_categories, ticket_priorities
 ├── tags.ts            ← tags, ticket_tags

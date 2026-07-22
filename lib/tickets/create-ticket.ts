@@ -7,6 +7,7 @@ import {
   setCustomFieldValues,
   validateCustomFieldInput,
 } from "@/lib/custom-fields";
+import { findOrCreateCustomer } from "@/lib/customers";
 import { db } from "@/lib/db";
 import { enqueueEmail } from "@/lib/email";
 import { ticketCreatedTemplate } from "@/lib/email/templates/ticket-created";
@@ -220,6 +221,7 @@ export async function createTicketFromSubmission(
   const attachments = input.attachments ?? [];
 
   try {
+    const customer = await findOrCreateCustomer(name, email);
     const [inserted] = await db
       .insert(tickets)
       .values({
@@ -229,8 +231,7 @@ export async function createTicketFromSubmission(
         category,
         status,
         priority,
-        customerName: name,
-        customerEmail: email,
+        customerId: customer.id,
         customerToken,
         source: input.source,
         apiKeyId: input.apiKeyId,

@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { apiKeys } from "@/db/schema/api-keys";
 import { user } from "@/db/schema/auth";
+import { customers } from "@/db/schema/customers";
 
 export const tickets = pgTable(
   "tickets",
@@ -22,8 +23,9 @@ export const tickets = pgTable(
     category: text("category").notNull(),
     status: text("status").notNull().default("open"),
     priority: text("priority").notNull().default("normal"),
-    customerName: text("customer_name").notNull(),
-    customerEmail: text("customer_email").notNull(),
+    customerId: text("customer_id")
+      .notNull()
+      .references(() => customers.id),
     customerToken: text("customer_token").notNull().unique(),
     assignedAgentId: text("assigned_agent_id").references(() => user.id, {
       onDelete: "set null",
@@ -67,7 +69,7 @@ export const tickets = pgTable(
   },
   (t) => [
     uniqueIndex("tickets_ticket_number_idx").on(t.ticketNumber),
-    index("tickets_customer_email_idx").on(t.customerEmail),
+    index("tickets_customer_id_idx").on(t.customerId),
     index("tickets_status_idx").on(t.status),
     index("tickets_assigned_agent_id_idx").on(t.assignedAgentId),
     index("tickets_created_at_idx").on(t.createdAt),
