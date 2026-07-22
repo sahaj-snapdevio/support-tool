@@ -24,6 +24,7 @@ import {
   richTextToPlainText,
   textToRichTextJson,
 } from "@/lib/rich-text";
+import { computeSlaTransition } from "@/lib/sla";
 import { storage } from "@/lib/storage";
 import { isClosedStatusSlug } from "@/lib/ticket-config";
 import {
@@ -205,6 +206,8 @@ export async function POST(
       ticketNumber: tickets.ticketNumber,
       subject: tickets.subject,
       assignedAgentId: tickets.assignedAgentId,
+      awaitingReply: tickets.awaitingReply,
+      waitingSince: tickets.waitingSince,
     })
     .from(tickets)
     .where(eq(tickets.id, ticketId))
@@ -282,13 +285,20 @@ export async function POST(
       );
     }
 
-    // A customer reply puts the ticket back into "awaiting reply".
+    // A customer reply puts the ticket back into "awaiting reply". SLA
+    // pause/resume (lib/sla.ts) rides the same signal.
+    const slaUpdate = computeSlaTransition(
+      { awaitingReply: ticket.awaitingReply, waitingSince: ticket.waitingSince },
+      true,
+      now
+    );
     await db
       .update(tickets)
       .set({
         updatedAt: now,
         awaitingReply: true,
         pendingReplies: sql`${tickets.pendingReplies} + 1`,
+        ...slaUpdate,
       })
       .where(eq(tickets.id, ticketId));
 

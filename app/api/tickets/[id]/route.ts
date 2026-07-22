@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { ADMIN_ROLE } from "@/config/platform";
 import { ticketActivity, ticketAttachments, tickets } from "@/db/schema";
+import { audit } from "@/lib/audit";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
@@ -254,6 +255,16 @@ export async function DELETE(
 
   // Delete ticket (cascade removes comments, activity, attachments)
   await db.delete(tickets).where(eq(tickets.id, ticketId));
+
+  await audit({
+    action: "ticket.deleted",
+    actorEmail: session.user.email,
+    actorId: session.user.id,
+    description: `Deleted ticket #${ticket.ticketNumber}`,
+    entityId: ticketId,
+    entityType: "ticket",
+    metadata: { ticketNumber: ticket.ticketNumber },
+  });
 
   return NextResponse.json({ ok: true });
 }

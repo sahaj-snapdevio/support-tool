@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { enqueueEmail } from "@/lib/email";
 import { ticketClosedTemplate } from "@/lib/email/templates/ticket-closed";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { computeSlaTransition } from "@/lib/sla";
 import {
   getClosedStatus,
   getDefaultStatus,
@@ -107,6 +108,12 @@ export async function PATCH(
     }
 
     const previousStatus = ticket.status;
+    const slaUpdate = computeSlaTransition(
+      { awaitingReply: ticket.awaitingReply, waitingSince: ticket.waitingSince },
+      false,
+      now,
+      "closing"
+    );
     await db
       .update(tickets)
       .set({
@@ -115,6 +122,7 @@ export async function PATCH(
         updatedAt: now,
         awaitingReply: false,
         pendingReplies: 0,
+        ...slaUpdate,
       })
       .where(eq(tickets.id, ticketId));
 
@@ -170,6 +178,12 @@ export async function PATCH(
 
   const previousStatus = ticket.status;
   // A customer reopening needs the team's attention again.
+  const slaUpdate = computeSlaTransition(
+    { awaitingReply: ticket.awaitingReply, waitingSince: ticket.waitingSince },
+    true,
+    now,
+    "reopening"
+  );
   await db
     .update(tickets)
     .set({
@@ -178,6 +192,7 @@ export async function PATCH(
       updatedAt: now,
       awaitingReply: true,
       pendingReplies: 1,
+      ...slaUpdate,
     })
     .where(eq(tickets.id, ticketId));
 

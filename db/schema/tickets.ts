@@ -41,6 +41,23 @@ export const tickets = pgTable(
       onDelete: "set null",
     }),
     closedAt: timestamp("closed_at", { withTimezone: true }),
+    // SLA tracking (see lib/sla.ts). All three are additive bookkeeping next
+    // to the existing awaitingReply/pendingReplies fields, updated by the
+    // same call sites via lib/sla.ts's computeSlaTransition().
+    //
+    // When the CURRENT wait state (waiting for agent vs. waiting for
+    // customer) began — null once the ticket is closed/resolved. Only
+    // updated on an actual awaitingReply flip, not on every message, so a
+    // customer's second follow-up doesn't reset the response clock.
+    waitingSince: timestamp("waiting_since", { withTimezone: true }),
+    // Frozen once set — the first non-internal agent/admin reply. Keeps the
+    // First Response outcome displayable after the ticket moves on to
+    // tracking Next Response.
+    firstRespondedAt: timestamp("first_responded_at", { withTimezone: true }),
+    // Accumulated "waiting for agent" seconds from completed pause/resume
+    // cycles — the Resolution SLA clock. Stored in seconds (not ms) to avoid
+    // the ~24.8-day overflow a 32-bit int would hit with milliseconds.
+    slaActiveSeconds: integer("sla_active_seconds").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

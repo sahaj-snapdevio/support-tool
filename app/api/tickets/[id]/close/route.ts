@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { enqueueEmail } from "@/lib/email";
 import { ticketClosedTemplate } from "@/lib/email/templates/ticket-closed";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { computeSlaTransition } from "@/lib/sla";
 import { getClosedStatus, isClosedStatusSlug } from "@/lib/ticket-config";
 import { resolveTicketPortalUrl } from "@/lib/tickets/portal-url";
 
@@ -97,15 +98,24 @@ export async function PATCH(
 
   const previousStatus = ticket.status;
 
+  // Closing resolves the ticket — it's no longer awaiting a reply, and the
+  // SLA resolution clock stops (flushing any in-progress active span first).
+  const slaUpdate = computeSlaTransition(
+    { awaitingReply: ticket.awaitingReply, waitingSince: ticket.waitingSince },
+    false,
+    now,
+    "closing"
+  );
+
   await db
     .update(tickets)
-    // Closing resolves the ticket — it's no longer awaiting a reply.
     .set({
       status: closedStatus.slug,
       closedAt: now,
       updatedAt: now,
       awaitingReply: false,
       pendingReplies: 0,
+      ...slaUpdate,
     })
     .where(eq(tickets.id, ticketId));
 

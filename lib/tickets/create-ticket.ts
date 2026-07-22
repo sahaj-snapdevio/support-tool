@@ -234,9 +234,11 @@ export async function createTicketFromSubmission(
         customerToken,
         source: input.source,
         apiKeyId: input.apiKeyId,
-        // A brand-new ticket is awaiting the team's first reply.
+        // A brand-new ticket is awaiting the team's first reply — the SLA
+        // response clock starts ticking from creation (see lib/sla.ts).
         awaitingReply: true,
         pendingReplies: 1,
+        waitingSince: now,
         createdAt: now,
         updatedAt: now,
       })

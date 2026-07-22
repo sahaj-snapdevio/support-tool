@@ -105,6 +105,27 @@ ticket_categories
 └── updated_at        timestamp with time zone NOT NULL DEFAULT NOW()
 ```
 
+### `sla_policies`
+
+Admin-configurable SLA targets, optionally scoped to a priority and/or
+category slug (both nullable — null means "any"; most-specific match wins).
+See `docs/tickets.md` § SLA and `docs/plans/12-sla.md` for the full design.
+
+```
+sla_policies
+├── id                        text PK (cuid2)
+├── name                      text NOT NULL
+├── priority                  text, nullable    ← slug from ticket_priorities; null = any priority
+├── category                  text, nullable    ← slug from ticket_categories; null = any category
+├── first_response_minutes    integer NOT NULL
+├── next_response_minutes     integer NOT NULL
+├── resolution_minutes        integer NOT NULL
+├── is_default                boolean NOT NULL DEFAULT false   ← exactly one row (priority & category both null)
+├── sort_order                integer NOT NULL DEFAULT 0
+├── created_at                timestamp with time zone NOT NULL DEFAULT NOW()
+└── updated_at                timestamp with time zone NOT NULL DEFAULT NOW()
+```
+
 ---
 
 ### `api_keys`
@@ -163,6 +184,9 @@ tickets
 ├── source            text NOT NULL DEFAULT 'portal' ← 'portal' | 'api'
 ├── api_key_id        text → api_keys.id (SET NULL on delete), nullable   ← set when source = 'api'
 ├── closed_at         timestamp with time zone, nullable
+├── waiting_since     timestamp with time zone, nullable  ← SLA: when the current wait state began; null once closed (see docs/tickets.md § SLA)
+├── first_responded_at timestamp with time zone, nullable ← SLA: frozen at the first non-internal agent/admin reply
+├── sla_active_seconds integer NOT NULL DEFAULT 0         ← SLA: accumulated "waiting for agent" seconds (Resolution clock)
 ├── created_at        timestamp with time zone NOT NULL DEFAULT NOW()
 └── updated_at        timestamp with time zone NOT NULL DEFAULT NOW()
 

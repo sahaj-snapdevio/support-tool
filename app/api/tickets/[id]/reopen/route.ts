@@ -6,6 +6,7 @@ import { ticketActivity, tickets } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { computeSlaTransition } from "@/lib/sla";
 import { getDefaultStatus, isClosedStatusSlug } from "@/lib/ticket-config";
 
 export async function PATCH(
@@ -97,6 +98,16 @@ export async function PATCH(
   // is already handling it.
   const reopenedByCustomer = actorRole === "customer";
 
+  // Resuming from "resolved" always restarts the SLA clock at `now` — there's
+  // no in-progress span to flush since it was already stopped at close (see
+  // lib/sla.ts's "reopening" mode).
+  const slaUpdate = computeSlaTransition(
+    { awaitingReply: ticket.awaitingReply, waitingSince: ticket.waitingSince },
+    reopenedByCustomer,
+    now,
+    "reopening"
+  );
+
   await db
     .update(tickets)
     .set({
@@ -105,6 +116,7 @@ export async function PATCH(
       updatedAt: now,
       awaitingReply: reopenedByCustomer,
       pendingReplies: reopenedByCustomer ? 1 : 0,
+      ...slaUpdate,
     })
     .where(eq(tickets.id, ticketId));
 
