@@ -12,6 +12,7 @@ import {
   TagIcon,
   TicketIcon,
   UsersIcon,
+  WebhooksLogoIcon,
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -54,6 +55,7 @@ const adminItems = [
     icon: ClockCounterClockwiseIcon,
   },
   { href: "/admin/api-keys", label: "API Keys", icon: KeyIcon },
+  { href: "/admin/webhooks", label: "Webhooks", icon: WebhooksLogoIcon },
 ];
 
 export function AgentSidebar({

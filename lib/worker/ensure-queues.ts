@@ -37,6 +37,16 @@ export const QUEUE_OPTIONS: Record<
     policy: "exclusive",
     retryLimit: 1,
   },
+  [JOB_NAMES.WEBHOOK_SEND]: {
+    expireInSeconds: 300,
+    policy: "standard",
+    retryLimit: 0,
+  },
+  [JOB_NAMES.WEBHOOK_DELIVERIES_REAP]: {
+    expireInSeconds: 300,
+    policy: "exclusive",
+    retryLimit: 0,
+  },
 };
 
 export async function ensureJobQueues(boss: PgBoss) {

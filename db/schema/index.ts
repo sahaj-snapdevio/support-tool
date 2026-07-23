@@ -14,3 +14,5 @@ export * from "@/db/schema/tags";
 export * from "@/db/schema/user-preferences";
 export * from "@/db/schema/custom-fields";
 export * from "@/db/schema/email-templates";
+export * from "@/db/schema/webhooks";
+export * from "@/db/schema/webhook-deliveries";

@@ -13,6 +13,7 @@ import {
   getDefaultStatus,
   isClosedStatusSlug,
 } from "@/lib/ticket-config";
+import { notifyTicketStatusChange } from "@/lib/tickets/notify-status-change";
 import { resolveTicketPortalUrl } from "@/lib/tickets/portal-url";
 
 // PATCH /api/v1/tickets/:id/status — public API, authenticated with an API
@@ -129,6 +130,24 @@ export async function PATCH(
       createdAt: now,
     });
 
+    // Notify any configured outbound webhooks.
+    await notifyTicketStatusChange(
+      {
+        id: ticketId,
+        ticketNumber: ticket.ticketNumber,
+        subject: ticket.subject,
+        status: closedStatus.slug,
+        priority: ticket.priority,
+        category: ticket.category,
+        customerName: ticket.customerName,
+        customerEmail: ticket.customerEmail,
+        createdAt: ticket.createdAt,
+        updatedAt: now,
+      },
+      false,
+      true
+    ).catch((err) => console.error("[webhook.ticket_closed]", err));
+
     const ticketUrl = await resolveTicketPortalUrl(
       ticketId,
       ticket.customerToken,
@@ -191,6 +210,24 @@ export async function PATCH(
     metadata: { from: previousStatus, to: defaultStatus.slug },
     createdAt: now,
   });
+
+  // Notify any configured outbound webhooks.
+  await notifyTicketStatusChange(
+    {
+      id: ticketId,
+      ticketNumber: ticket.ticketNumber,
+      subject: ticket.subject,
+      status: defaultStatus.slug,
+      priority: ticket.priority,
+      category: ticket.category,
+      customerName: ticket.customerName,
+      customerEmail: ticket.customerEmail,
+      createdAt: ticket.createdAt,
+      updatedAt: now,
+    },
+    true,
+    false
+  ).catch((err) => console.error("[webhook.ticket_reopened]", err));
 
   return NextResponse.json({ status: defaultStatus.slug });
 }

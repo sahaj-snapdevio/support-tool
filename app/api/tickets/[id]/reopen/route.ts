@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getDefaultStatus, isClosedStatusSlug } from "@/lib/ticket-config";
+import { notifyTicketStatusChange } from "@/lib/tickets/notify-status-change";
 
 export async function PATCH(
   request: NextRequest,
@@ -118,6 +119,24 @@ export async function PATCH(
     metadata: { from: previousStatus, to: defaultStatus.slug },
     createdAt: now,
   });
+
+  // Notify any configured outbound webhooks.
+  await notifyTicketStatusChange(
+    {
+      id: ticketId,
+      ticketNumber: ticket.ticketNumber,
+      subject: ticket.subject,
+      status: defaultStatus.slug,
+      priority: ticket.priority,
+      category: ticket.category,
+      customerName: ticket.customerName,
+      customerEmail: ticket.customerEmail,
+      createdAt: ticket.createdAt,
+      updatedAt: now,
+    },
+    true,
+    false
+  ).catch((err) => console.error("[webhook.ticket_reopened]", err));
 
   return NextResponse.json({ status: defaultStatus.slug });
 }

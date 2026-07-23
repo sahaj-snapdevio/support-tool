@@ -223,6 +223,7 @@ Ticket **descriptions** (submit form) and **replies** (both customer and agent) 
 | Admin Portal | `docs/admin-portal.md` |
 | Tickets | `docs/tickets.md` |
 | Public API | `docs/api.md` |
+| Webhooks (outbound) | `docs/webhooks.md` |
 | File Uploads | `docs/file-uploads.md` |
 | Email Notifications | `docs/email-notifications.md` |
 | Permission Model | `docs/permission-model.md` |

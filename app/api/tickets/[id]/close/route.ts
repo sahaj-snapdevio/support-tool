@@ -9,6 +9,7 @@ import { enqueueEmail } from "@/lib/email";
 import { ticketClosedTemplate } from "@/lib/email/templates/ticket-closed";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { getClosedStatus, isClosedStatusSlug } from "@/lib/ticket-config";
+import { notifyTicketStatusChange } from "@/lib/tickets/notify-status-change";
 import { resolveTicketPortalUrl } from "@/lib/tickets/portal-url";
 
 export async function PATCH(
@@ -119,6 +120,24 @@ export async function PATCH(
     metadata: { from: previousStatus, to: closedStatus.slug },
     createdAt: now,
   });
+
+  // Notify any configured outbound webhooks.
+  await notifyTicketStatusChange(
+    {
+      id: ticketId,
+      ticketNumber: ticket.ticketNumber,
+      subject: ticket.subject,
+      status: closedStatus.slug,
+      priority: ticket.priority,
+      category: ticket.category,
+      customerName: ticket.customerName,
+      customerEmail: ticket.customerEmail,
+      createdAt: ticket.createdAt,
+      updatedAt: now,
+    },
+    false,
+    true
+  ).catch((err) => console.error("[webhook.ticket_closed]", err));
 
   // Notify customer on close
   const ticketUrl = await resolveTicketPortalUrl(

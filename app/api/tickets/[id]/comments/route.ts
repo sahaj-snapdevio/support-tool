@@ -23,6 +23,7 @@ import { isRichTextEmpty, richTextToPlainText } from "@/lib/rich-text";
 import { storage } from "@/lib/storage";
 import { isClosedStatusSlug } from "@/lib/ticket-config";
 import { resolveTicketPortalUrl } from "@/lib/tickets/portal-url";
+import { dispatchWebhookEvent, ticketPayloadData } from "@/lib/webhooks/dispatch";
 
 const ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
@@ -76,11 +77,14 @@ export async function POST(
   let isInternal = false;
   let ticketData:
     | {
+        status: string;
         customerName: string;
         customerEmail: string;
         customerToken: string;
         ticketNumber: number;
         subject: string;
+        category: string;
+        priority: string;
         assignedAgentId: string | null;
         apiKeyId: string | null;
       }
@@ -115,6 +119,8 @@ export async function POST(
         customerToken: tickets.customerToken,
         ticketNumber: tickets.ticketNumber,
         subject: tickets.subject,
+        category: tickets.category,
+        priority: tickets.priority,
         assignedAgentId: tickets.assignedAgentId,
         apiKeyId: tickets.apiKeyId,
       })
@@ -159,6 +165,8 @@ export async function POST(
         customerToken: tickets.customerToken,
         ticketNumber: tickets.ticketNumber,
         subject: tickets.subject,
+        category: tickets.category,
+        priority: tickets.priority,
         assignedAgentId: tickets.assignedAgentId,
         apiKeyId: tickets.apiKeyId,
       })
@@ -298,6 +306,31 @@ export async function POST(
     await publishTicketCommentCreated(ticketId).catch((err) =>
       console.error("[realtime.comment_created]", err)
     );
+
+    // Notify any configured outbound webhooks — public replies only, never
+    // internal notes (agent-only intel, never meant to leave the building).
+    if (!isInternal && ticketData) {
+      await dispatchWebhookEvent("ticket.replied", "ticket", ticketId, {
+        ticket: ticketPayloadData({
+          id: ticketId,
+          ticketNumber: ticketData.ticketNumber,
+          subject: ticketData.subject,
+          status: ticketData.status,
+          priority: ticketData.priority,
+          category: ticketData.category,
+          customerName: ticketData.customerName,
+          customerEmail: ticketData.customerEmail,
+          createdAt: now,
+          updatedAt: now,
+        }),
+        comment: {
+          authorName,
+          authorRole,
+          content: contentText,
+          createdAt: now.toISOString(),
+        },
+      }).catch((err) => console.error("[webhook.ticket_replied]", err));
+    }
 
     // Notify customer when an agent posts a public reply
     if (!isInternal && authorRole !== "customer" && ticketData) {

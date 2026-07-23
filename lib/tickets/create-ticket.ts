@@ -23,6 +23,7 @@ import {
   getTicketCategories,
   getTicketPriorities,
 } from "@/lib/ticket-config";
+import { dispatchWebhookEvent, ticketPayloadData } from "@/lib/webhooks/dispatch";
 
 export interface TicketSubmissionAttachment {
   filename: string;
@@ -329,6 +330,22 @@ export async function createTicketFromSubmission(
     await publishTicketCreated().catch((err) =>
       console.error("[realtime.ticket_created]", err)
     );
+
+    // Notify any configured outbound webhooks (no-op if none are configured).
+    await dispatchWebhookEvent("ticket.created", "ticket", ticketId, {
+      ticket: ticketPayloadData({
+        id: ticketId,
+        ticketNumber: inserted.ticketNumber,
+        subject,
+        status,
+        priority,
+        category,
+        customerName: name,
+        customerEmail: email,
+        createdAt: now,
+        updatedAt: now,
+      }),
+    }).catch((err) => console.error("[webhook.ticket_created]", err));
 
     return {
       ok: true,

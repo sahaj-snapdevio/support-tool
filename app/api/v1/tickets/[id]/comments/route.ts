@@ -31,6 +31,7 @@ import {
   decodeBase64Attachments,
   uploadDecodedAttachments,
 } from "@/lib/tickets/api-attachments";
+import { dispatchWebhookEvent, ticketPayloadData } from "@/lib/webhooks/dispatch";
 
 // GET /api/v1/tickets/:id/comments — public API, authenticated with an API
 // key. Read-only conversation thread: public replies only, internal notes
@@ -204,6 +205,8 @@ export async function POST(
       customerEmail: tickets.customerEmail,
       ticketNumber: tickets.ticketNumber,
       subject: tickets.subject,
+      category: tickets.category,
+      priority: tickets.priority,
       assignedAgentId: tickets.assignedAgentId,
     })
     .from(tickets)
@@ -307,6 +310,29 @@ export async function POST(
     await publishTicketCommentCreated(ticketId).catch((err) =>
       console.error("[realtime.comment_created]", err)
     );
+
+    // Notify any configured outbound webhooks — this route only ever posts
+    // public customer replies (no internal-note concept here).
+    await dispatchWebhookEvent("ticket.replied", "ticket", ticketId, {
+      ticket: ticketPayloadData({
+        id: ticketId,
+        ticketNumber: ticket.ticketNumber,
+        subject: ticket.subject,
+        status: ticket.status,
+        priority: ticket.priority,
+        category: ticket.category,
+        customerName: ticket.customerName,
+        customerEmail: ticket.customerEmail,
+        createdAt: now,
+        updatedAt: now,
+      }),
+      comment: {
+        authorName: ticket.customerName,
+        authorRole: "customer",
+        content: contentText,
+        createdAt: now.toISOString(),
+      },
+    }).catch((err) => console.error("[webhook.ticket_replied]", err));
 
     // Notify agents in-app + push: assigned agent if any, else every active
     // agent/admin — same routing the portal uses for a customer reply.

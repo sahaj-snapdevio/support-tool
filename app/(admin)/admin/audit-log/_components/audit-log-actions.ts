@@ -15,6 +15,10 @@ export const AUDIT_ACTIONS: { label: string; value: string }[] = [
   { label: "Bulk Update", value: "ticket.bulk_update" },
   { label: "Bulk Delete", value: "ticket.bulk_delete" },
   { label: "Canned Response Deleted", value: "canned_response.deleted" },
+  { label: "Webhook Created", value: "webhook.created" },
+  { label: "Webhook Updated", value: "webhook.updated" },
+  { label: "Webhook Deleted", value: "webhook.deleted" },
+  { label: "Webhook Secret Rotated", value: "webhook.secret_rotated" },
 ];
 
 const AUDIT_ACTION_LABEL_MAP: Record<string, string> = Object.fromEntries(

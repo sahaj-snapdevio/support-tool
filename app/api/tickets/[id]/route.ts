@@ -13,6 +13,8 @@ import {
   getTicketPriorities,
   getTicketStatuses,
 } from "@/lib/ticket-config";
+import { notifyTicketStatusChange } from "@/lib/tickets/notify-status-change";
+import { dispatchWebhookEvent, ticketPayloadData } from "@/lib/webhooks/dispatch";
 
 async function requireAgentSession(request: NextRequest) {
   const session = await auth.api.getSession({ headers: request.headers });
@@ -135,6 +137,30 @@ export async function PATCH(
       createdAt: now,
     });
     changed = true;
+
+    // Notify any configured outbound webhooks — routed through the same
+    // helper the dedicated /close and /reopen routes use, so closing via
+    // this generic PATCH (e.g. the sidebar status dropdown) still fires the
+    // same ticket.closed/ticket.reopened event an integrator would expect.
+    const previousStatusRow = validStatuses.find(
+      (s) => s.slug === previousStatus
+    );
+    await notifyTicketStatusChange(
+      {
+        id: ticketId,
+        ticketNumber: ticket.ticketNumber,
+        subject: ticket.subject,
+        status: newStatus,
+        priority: ticket.priority,
+        category: ticket.category,
+        customerName: ticket.customerName,
+        customerEmail: ticket.customerEmail,
+        createdAt: ticket.createdAt,
+        updatedAt: now,
+      },
+      previousStatusRow?.isClosedState ?? false,
+      statusRow.isClosedState
+    ).catch((err) => console.error("[webhook.status_changed]", err));
   }
 
   // Category change
@@ -162,6 +188,22 @@ export async function PATCH(
       createdAt: now,
     });
     changed = true;
+
+    await dispatchWebhookEvent("ticket.category_changed", "ticket", ticketId, {
+      ticket: ticketPayloadData({
+        id: ticketId,
+        ticketNumber: ticket.ticketNumber,
+        subject: ticket.subject,
+        status: ticket.status,
+        priority: ticket.priority,
+        category: newCategory,
+        customerName: ticket.customerName,
+        customerEmail: ticket.customerEmail,
+        createdAt: ticket.createdAt,
+        updatedAt: now,
+      }),
+      previousCategory,
+    }).catch((err) => console.error("[webhook.category_changed]", err));
   }
 
   // Priority change
@@ -189,6 +231,22 @@ export async function PATCH(
       createdAt: now,
     });
     changed = true;
+
+    await dispatchWebhookEvent("ticket.priority_changed", "ticket", ticketId, {
+      ticket: ticketPayloadData({
+        id: ticketId,
+        ticketNumber: ticket.ticketNumber,
+        subject: ticket.subject,
+        status: ticket.status,
+        priority: newPriority,
+        category: ticket.category,
+        customerName: ticket.customerName,
+        customerEmail: ticket.customerEmail,
+        createdAt: ticket.createdAt,
+        updatedAt: now,
+      }),
+      previousPriority,
+    }).catch((err) => console.error("[webhook.priority_changed]", err));
   }
 
   // Assignment change
@@ -211,6 +269,27 @@ export async function PATCH(
         createdAt: now,
       });
       changed = true;
+
+      await dispatchWebhookEvent(
+        newAgentId ? "ticket.assigned" : "ticket.unassigned",
+        "ticket",
+        ticketId,
+        {
+          ticket: ticketPayloadData({
+            id: ticketId,
+            ticketNumber: ticket.ticketNumber,
+            subject: ticket.subject,
+            status: ticket.status,
+            priority: ticket.priority,
+            category: ticket.category,
+            customerName: ticket.customerName,
+            customerEmail: ticket.customerEmail,
+            createdAt: ticket.createdAt,
+            updatedAt: now,
+          }),
+          assignedAgentId: newAgentId,
+        }
+      ).catch((err) => console.error("[webhook.assignment_changed]", err));
     }
   }
 

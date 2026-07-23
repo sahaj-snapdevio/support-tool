@@ -58,6 +58,12 @@ export async function startWorker() {
   const { handleScaffoldHealthcheck } = await import(
     "@/lib/worker/handlers/scaffold-healthcheck"
   );
+  const { handleWebhookSend } = await import(
+    "@/lib/worker/handlers/webhook-send"
+  );
+  const { handleWebhookDeliveriesReap } = await import(
+    "@/lib/worker/handlers/webhook-deliveries-reap"
+  );
 
   await Promise.all([
     work(JOB_NAMES.EMAIL_SEND, handleEmailSend),
@@ -65,12 +71,15 @@ export async function startWorker() {
     work(JOB_NAMES.EMAIL_EVENTS_PRUNE, handleEmailEventsPrune),
     work(JOB_NAMES.RATE_LIMIT_HITS_PRUNE, handleRateLimitHitsPrune),
     work(JOB_NAMES.SCAFFOLD_HEALTHCHECK, handleScaffoldHealthcheck),
+    work(JOB_NAMES.WEBHOOK_SEND, handleWebhookSend),
+    work(JOB_NAMES.WEBHOOK_DELIVERIES_REAP, handleWebhookDeliveriesReap),
   ]);
 
   await boss.schedule(JOB_NAMES.EMAIL_OUTBOX_REAP, "*/15 * * * *", {});
   await boss.schedule(JOB_NAMES.EMAIL_EVENTS_PRUNE, "17 3 * * *", {});
   await boss.schedule(JOB_NAMES.RATE_LIMIT_HITS_PRUNE, "23 3 * * *", {});
   await boss.schedule(JOB_NAMES.SCAFFOLD_HEALTHCHECK, "*/10 * * * *", {});
+  await boss.schedule(JOB_NAMES.WEBHOOK_DELIVERIES_REAP, "*/15 * * * *", {});
 
   console.log("[worker] handlers registered");
 }

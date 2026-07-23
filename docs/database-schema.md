@@ -127,6 +127,43 @@ api_keys
 └── created_at        timestamp with time zone NOT NULL DEFAULT NOW()
 ```
 
+### `webhook_endpoints` / `webhook_deliveries`
+
+Outbound webhooks — see `docs/webhooks.md`. Managed from `/admin/webhooks`.
+
+```
+webhook_endpoints
+├── id                    text PK (cuid2)
+├── name                  text NOT NULL
+├── url                   text NOT NULL
+├── secret_encrypted      text NOT NULL   ← AES-256-GCM, key derived from env.APP_SECRET; shown to the admin in plaintext only once, at creation/rotation
+├── events                jsonb NOT NULL  ← string[] of subscribed event slugs, e.g. ["ticket.created"]
+├── is_active             boolean NOT NULL DEFAULT true
+├── created_by_id         text → user.id (SET NULL on delete), nullable
+├── created_by_name       text NOT NULL
+├── last_delivery_at      timestamp with time zone, nullable
+├── last_delivery_status  text, nullable   ← 'sent' | 'failed'
+├── created_at            timestamp with time zone NOT NULL DEFAULT NOW()
+└── updated_at            timestamp with time zone NOT NULL DEFAULT NOW()
+
+webhook_deliveries
+├── id               text PK (cuid2)
+├── webhook_id       text NOT NULL → webhook_endpoints.id (CASCADE DELETE)
+├── event            text NOT NULL
+├── entity_type      text NOT NULL   ← "ticket" (or "test" for the admin "Send test event" button)
+├── entity_id        text NOT NULL
+├── payload          jsonb NOT NULL  ← the exact frozen request body, built once at enqueue time
+├── status           text NOT NULL DEFAULT 'queued'  ← enum: queued | sending | sent | failed
+├── attempt_count    integer NOT NULL DEFAULT 0
+├── max_attempts     integer NOT NULL DEFAULT 5
+├── response_status  integer, nullable
+├── last_error       text, nullable
+├── claimed_at       timestamp with time zone, nullable
+├── delivered_at     timestamp with time zone, nullable
+├── created_at       timestamp with time zone NOT NULL DEFAULT NOW()
+└── updated_at       timestamp with time zone NOT NULL DEFAULT NOW()
+```
+
 ### `email_templates`
 
 Admin-editable overrides for the 4 customer-facing notification emails (ticket created/replied/closed, my-tickets-list). One row per type, created on first save via `/admin/email-templates` — an absent row (or null columns) means "use the built-in default." See `docs/email-notifications.md`'s "Customizing Email Templates" section.
@@ -343,6 +380,8 @@ db/schema/
 ├── tags.ts            ← tags, ticket_tags
 ├── custom-fields.ts   ← ticket_custom_fields, ticket_custom_field_values
 ├── email-templates.ts ← email_templates
+├── webhooks.ts        ← webhook_endpoints
+├── webhook-deliveries.ts ← webhook_deliveries
 ├── user-preferences.ts ← user_ticket_table_prefs
 ├── api-keys.ts        ← api_keys
 ├── settings.ts        ← platform_settings
