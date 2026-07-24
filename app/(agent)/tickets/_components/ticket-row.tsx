@@ -306,7 +306,11 @@ export function TicketRow({
         }`}
       >
         {isAdmin && (
-          <td className="px-4 py-3">
+          <td
+            className={`sticky left-0 z-10 px-4 py-3 transition-colors group-hover:bg-accent/40 ${
+              selected ? "bg-primary/5" : "bg-card"
+            }`}
+          >
             <Checkbox checked={selected} onCheckedChange={onToggleSelect} />
           </td>
         )}

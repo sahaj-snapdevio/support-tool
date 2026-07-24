@@ -3,18 +3,19 @@ import {
   CaretRightIcon,
   UsersIcon,
 } from "@phosphor-icons/react/dist/ssr";
-import { count, ilike, or } from "drizzle-orm";
+import { and, count, desc, eq, exists, ilike, notExists, or } from "drizzle-orm";
 import Link from "next/link";
 import { Suspense } from "react";
 import { LocalDateTime } from "@/components/common/local-datetime";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ADMIN_ROLE } from "@/config/platform";
-import { user } from "@/db/schema";
+import { session as sessionTable, user } from "@/db/schema";
 import { requireAdmin } from "@/lib/authz";
 import { db } from "@/lib/db";
 import { getPlatformSettings } from "@/lib/settings";
 import { InviteUserDialog } from "./_components/invite-user-dialog";
+import { PendingInvitations } from "./_components/pending-invitations";
 import { UserActions } from "./_components/user-actions";
 import { UserSearch } from "./_components/user-search";
 
@@ -30,6 +31,28 @@ export default async function AdminUsersPage({ searchParams }: Props) {
   const session = await requireAdmin();
   const params = await searchParams;
 
+  // Invited users who have never signed in yet — every sign-in method
+  // (password, magic link, Google) creates a session row, so "no session
+  // ever" is the signal that an invite is still outstanding.
+  const pendingUsers = await db
+    .select({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      createdAt: user.createdAt,
+    })
+    .from(user)
+    .where(
+      notExists(
+        db
+          .select({ id: sessionTable.id })
+          .from(sessionTable)
+          .where(eq(sessionTable.userId, user.id))
+      )
+    )
+    .orderBy(desc(user.createdAt));
+
   return (
     <div className="p-4 lg:p-6 max-w-5xl mx-auto">
       {/* Header actions */}
@@ -37,6 +60,8 @@ export default async function AdminUsersPage({ searchParams }: Props) {
         <UserSearch />
         <InviteUserDialog />
       </div>
+
+      {pendingUsers.length > 0 && <PendingInvitations users={pendingUsers} />}
 
       {/* Re-suspends on search/pagination change (key = params) → skeleton shows. */}
       <Suspense fallback={<UsersTableSkeleton />} key={JSON.stringify(params)}>
@@ -57,9 +82,20 @@ async function UsersResults({
   const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
   const settings = await getPlatformSettings();
 
+  // Only accepted users belong in this list — pending invitations have
+  // their own section above (see PendingInvitations).
+  const hasAccepted = exists(
+    db
+      .select({ id: sessionTable.id })
+      .from(sessionTable)
+      .where(eq(sessionTable.userId, user.id))
+  );
   const where = search
-    ? or(ilike(user.name, `%${search}%`), ilike(user.email, `%${search}%`))
-    : undefined;
+    ? and(
+        hasAccepted,
+        or(ilike(user.name, `%${search}%`), ilike(user.email, `%${search}%`))
+      )
+    : hasAccepted;
 
   const [users, [{ total }]] = await Promise.all([
     db

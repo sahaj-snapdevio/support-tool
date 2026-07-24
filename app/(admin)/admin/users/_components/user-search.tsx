@@ -44,10 +44,12 @@ export function UserSearch() {
     <div className="relative w-72">
       <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
       <Input
-        value={q}
+        autoComplete="off"
+        className={cn("h-10 pl-9", q && "pr-9")}
+        name="user-search"
         onChange={(e) => setQ(e.target.value)}
         placeholder="Search by name or email…"
-        className={cn("h-10 pl-9", q && "pr-9")}
+        value={q}
       />
       {q && (
         <button

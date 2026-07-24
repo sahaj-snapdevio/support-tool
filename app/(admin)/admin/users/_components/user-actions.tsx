@@ -389,9 +389,11 @@ export function UserActions({
               Type <span className="font-mono text-foreground">{userEmail}</span> to confirm
             </Label>
             <Input
-              value={deleteEmail}
+              autoComplete="off"
+              name="delete-confirm-email"
               onChange={(e) => setDeleteEmail(e.target.value)}
               placeholder={userEmail}
+              value={deleteEmail}
             />
           </div>
           {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}

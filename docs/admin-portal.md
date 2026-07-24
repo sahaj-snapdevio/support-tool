@@ -32,9 +32,19 @@ Access requires a session with `role: admin`.
 
 ## 1. User Management (`/admin/users`)
 
+### Pending Invitations
+
+Shown above the user list, only when at least one invite is outstanding. A user counts as pending until they accept the invite by signing in for the first time (password, magic link, or Google — any method creates a session), determined by whether the user has ever had a `session` row, not by a separate status field. Not paginated or searched.
+
+Each row shows name + email, role badge, an "Invited" badge, and invited date, plus:
+- **Resend** — re-sends the invitation email (a fresh password-setup link is minted if password sign-in is enabled).
+- **Cancel** — hard-deletes the invited user record, same as Delete User below.
+
+Once a pending user accepts, they disappear from this list on next page load and appear in the User List instead.
+
 ### User List
 
-Shows all registered users (agents + admins). Paginated — 25 per page.
+Shows all users who have accepted their invite (agents + admins) — pending invitations live in their own section above. Paginated — 25 per page.
 
 Each row shows:
 - Avatar + name + email
@@ -44,7 +54,7 @@ Each row shows:
 
 ### Search
 
-Search by name or email.
+Search by name or email. Only matches accepted users — pending invitations aren't included.
 
 ### Actions Per User
 
@@ -200,7 +210,7 @@ A range toggle (**Last 30 days** / **Last 90 days** / **All time**, default 30 d
 
 ### 4a. Tickets per Agent
 
-One row per agent (by *current* assignment — not reassignment history) plus an **Unassigned** row: Total tickets, Open tickets, Avg First Response, Avg Resolution.
+A stacked horizontal bar chart (Open vs. Closed per agent) sits above the table for an at-a-glance read of who's carrying the most open load, followed by the detailed table: one row per agent (by *current* assignment — not reassignment history) plus an **Unassigned** row, with Total tickets, Open tickets, Avg First Response, Avg Resolution.
 
 - **Avg First Response** — average time from ticket creation to that agent's first public reply (`tickets.firstRespondedAt - tickets.createdAt`).
 - **Avg Resolution** — average `tickets.slaActiveSeconds` (accumulated agent-active time toward resolution — already excludes time spent waiting on the customer, see `docs/tickets.md` § SLA) across that agent's closed tickets. This is a materially better "how fast do we resolve" number than a naive `closedAt - createdAt`, since it doesn't penalize an agent for a customer who took 3 days to reply.
@@ -208,7 +218,9 @@ One row per agent (by *current* assignment — not reassignment history) plus an
 
 ### 4b. Tickets by Category / Priority / Tag
 
-Three breakdown tables — Category and Priority show count + share of total; Tag shows count only (a ticket can have multiple tags, so tag shares wouldn't sum to 100%) and is capped to the **top 20 tags** by ticket count (tags are an unbounded freeform pool — see `docs/tickets.md` § Tags).
+Three breakdown sections, each pairing a horizontal bar chart with its table — Category and Priority show count + share of total; Tag shows count only (a ticket can have multiple tags, so tag shares wouldn't sum to 100%) and is capped to the **top 20 tags** by ticket count (tags are an unbounded freeform pool — see `docs/tickets.md` § Tags).
+
+Category and Priority bars (≤8 rows) are colored individually from the app's validated categorical chart palette (`--chart-1` … `--chart-8` in `app/globals.css`, `lib/chart-colors.ts`); Tag (up to 20 rows) uses a single hue instead, since per-bar color only carries meaning when there are few enough series to stay distinguishable.
 
 ### 4c. CSV Export
 

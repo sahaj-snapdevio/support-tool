@@ -298,7 +298,7 @@ export function TicketsTable({
             <thead>
               <tr className="border-b border-border bg-accent/50">
                 {isAdmin && (
-                  <th className="w-10 px-4 py-3">
+                  <th className="sticky left-0 z-20 w-10 bg-accent px-4 py-3">
                     <Checkbox
                       checked={allSelected}
                       onCheckedChange={toggleAll}

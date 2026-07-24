@@ -102,7 +102,7 @@ export function SlaMetricBadge({ metric, className }: SlaMetricBadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center whitespace-nowrap rounded border px-2 py-0.5 text-xs font-medium",
+        "inline-block max-w-full rounded border px-2 py-0.5 text-xs font-medium",
         STATUS_CLASSES[status],
         className
       )}

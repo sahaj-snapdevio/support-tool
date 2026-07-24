@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { getResetTokenEmail } from "@/app/actions/reset-password";
 import { BrandMark } from "@/components/common/brand-mark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,18 +48,37 @@ function ResetPasswordFormInner({ brandName, logoUrl }: Props) {
     }
 
     setSubmitting(true);
+
+    // Look up who this token belongs to before it gets consumed, so we can
+    // sign them in immediately after — accepting an invite (or resetting a
+    // forgotten password) becomes one step instead of "set password, then
+    // separately log in with it".
+    const email = token ? await getResetTokenEmail(token) : null;
+
     const result = await authClient.resetPassword({
       newPassword: password,
       token: token ?? undefined,
     });
-    setSubmitting(false);
     if (result.error) {
+      setSubmitting(false);
       setError(
         result.error.message ??
           "This link has expired or has already been used."
       );
       return;
     }
+
+    if (email) {
+      const signInResult = await authClient.signIn.email({ email, password });
+      setSubmitting(false);
+      if (!signInResult.error) {
+        router.push("/post-auth");
+        return;
+      }
+    } else {
+      setSubmitting(false);
+    }
+
     router.push("/login?passwordReset=1");
   }
 
