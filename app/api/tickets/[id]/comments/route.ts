@@ -388,6 +388,7 @@ export async function POST(
             subject: emailSubject,
             html,
             text,
+            category: "ticket",
           })
         )
         .catch((err) => console.error("[ticket.replied email]", err));

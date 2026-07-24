@@ -1,8 +1,8 @@
 import { createId } from "@paralleldrive/cuid2";
 import { eq } from "drizzle-orm";
 import { emailTemplates } from "@/db/schema";
-import { emailBrand, emailStyles } from "@/lib/email/components/layout";
 import { db } from "@/lib/db";
+import { emailBrand, emailStyles } from "@/lib/email/components/layout";
 import { richTextToHtml, richTextToPlainText } from "@/lib/rich-text";
 
 export type EmailTemplateType =
@@ -12,14 +12,17 @@ export type EmailTemplateType =
   | "my_tickets_list";
 
 interface MergeTag {
-  tag: string;
   description: string;
+  tag: string;
 }
 
 interface EmailTemplateMeta {
+  defaultBody: string;
   defaultSubject: string;
-  label: string;
   description: string;
+  /** True for emails enqueued with `category: "ticket"` in lib/email — these stop sending, and the admin UI locks their editor, when `ticket_email_notifications_enabled` is off. */
+  gatedByTicketToggle: boolean;
+  label: string;
   mergeTags: MergeTag[];
   type: EmailTemplateType;
 }
@@ -32,13 +35,27 @@ export const EMAIL_TEMPLATE_TYPES: EmailTemplateMeta[] = [
     type: "ticket_created",
     label: "Ticket Created",
     description: "Sent to the customer right after they submit a ticket.",
-    defaultSubject: "[#{{ticketNumber}}] Your ticket has been received — {{ticketSubject}}",
+    defaultSubject:
+      "[#{{ticketNumber}}] Your ticket has been received — {{ticketSubject}}",
+    gatedByTicketToggle: true,
+    defaultBody: `Hi {{customerName}},
+
+Your support ticket #{{ticketNumber}} has been received. Our team will review it and get back to you as soon as possible.
+
+Subject: {{ticketSubject}}
+
+View your ticket: {{ticketUrl}}
+
+You can also find all your tickets here: {{myTicketsUrl}}`,
     mergeTags: [
       { tag: "customerName", description: "Customer's name" },
       { tag: "ticketNumber", description: "e.g. 1042" },
       { tag: "ticketSubject", description: "The ticket's subject line" },
       { tag: "ticketUrl", description: "Link to view the ticket" },
-      { tag: "myTicketsUrl", description: "Link to the customer's ticket list" },
+      {
+        tag: "myTicketsUrl",
+        description: "Link to the customer's ticket list",
+      },
       { tag: "brandName", description: "Your configured brand name" },
     ],
   },
@@ -46,13 +63,30 @@ export const EMAIL_TEMPLATE_TYPES: EmailTemplateMeta[] = [
     type: "ticket_replied",
     label: "Agent Replied",
     description: "Sent to the customer when an agent posts a public reply.",
-    defaultSubject: "[#{{ticketNumber}}] New reply on your ticket — {{ticketSubject}}",
+    defaultSubject:
+      "[#{{ticketNumber}}] New reply on your ticket — {{ticketSubject}}",
+    gatedByTicketToggle: true,
+    defaultBody: `Hi {{customerName}},
+
+{{agentName}} has replied to your ticket #{{ticketNumber}}.
+
+Subject: {{ticketSubject}}
+
+{{replyPreview}}
+
+View your ticket and reply: {{ticketUrl}}`,
     mergeTags: [
       { tag: "customerName", description: "Customer's name" },
       { tag: "ticketNumber", description: "e.g. 1042" },
       { tag: "ticketSubject", description: "The ticket's subject line" },
-      { tag: "agentName", description: "The replying agent's name — omit this tag to hide it" },
-      { tag: "replyPreview", description: "The first ~500 characters of the reply" },
+      {
+        tag: "agentName",
+        description: "The replying agent's name — omit this tag to hide it",
+      },
+      {
+        tag: "replyPreview",
+        description: "The first ~500 characters of the reply",
+      },
       { tag: "ticketUrl", description: "Link to view the ticket" },
       { tag: "brandName", description: "Your configured brand name" },
     ],
@@ -61,7 +95,16 @@ export const EMAIL_TEMPLATE_TYPES: EmailTemplateMeta[] = [
     type: "ticket_closed",
     label: "Ticket Closed",
     description: "Sent to the customer when their ticket is closed.",
-    defaultSubject: "[#{{ticketNumber}}] Your ticket has been closed — {{ticketSubject}}",
+    defaultSubject:
+      "[#{{ticketNumber}}] Your ticket has been closed — {{ticketSubject}}",
+    gatedByTicketToggle: true,
+    defaultBody: `Hi {{customerName}},
+
+Your support ticket #{{ticketNumber}} has been marked as closed.
+
+Subject: {{ticketSubject}}
+
+If you still need help, you can reopen the ticket here: {{ticketUrl}}`,
     mergeTags: [
       { tag: "customerName", description: "Customer's name" },
       { tag: "ticketNumber", description: "e.g. 1042" },
@@ -75,6 +118,12 @@ export const EMAIL_TEMPLATE_TYPES: EmailTemplateMeta[] = [
     label: "My Tickets List",
     description: "Sent when a customer asks to find their tickets by email.",
     defaultSubject: "Your support tickets",
+    gatedByTicketToggle: false,
+    defaultBody: `Here's a secure link to view all {{ticketCount}} of your tickets.
+
+View my tickets: {{listUrl}}
+
+This link expires in 7 days.`,
     mergeTags: [
       { tag: "listUrl", description: "Link to the customer's ticket list" },
       { tag: "ticketCount", description: "How many open tickets they have" },
@@ -83,7 +132,9 @@ export const EMAIL_TEMPLATE_TYPES: EmailTemplateMeta[] = [
   },
 ];
 
-export function getEmailTemplateMeta(type: EmailTemplateType): EmailTemplateMeta {
+export function getEmailTemplateMeta(
+  type: EmailTemplateType
+): EmailTemplateMeta {
   const meta = EMAIL_TEMPLATE_TYPES.find((t) => t.type === type);
   if (!meta) {
     throw new Error(`Unknown email template type: ${type}`);
@@ -128,11 +179,19 @@ export async function setEmailTemplate(
 
   const subject =
     fields.subject === undefined ? (existing?.subject ?? null) : fields.subject;
-  const body = fields.body === undefined ? (existing?.body ?? null) : fields.body;
+  const body =
+    fields.body === undefined ? (existing?.body ?? null) : fields.body;
 
   const [row] = await db
     .insert(emailTemplates)
-    .values({ id: createId(), type, subject, body, createdAt: now, updatedAt: now })
+    .values({
+      id: createId(),
+      type,
+      subject,
+      body,
+      createdAt: now,
+      updatedAt: now,
+    })
     .onConflictDoUpdate({
       target: emailTemplates.type,
       set: { subject, body, updatedAt: now },
@@ -142,7 +201,10 @@ export async function setEmailTemplate(
 }
 
 /** Replace every `{{tag}}` occurrence found in `vars`; unrecognized tags are left as-is. */
-export function substituteTags(input: string, vars: Record<string, string>): string {
+export function substituteTags(
+  input: string,
+  vars: Record<string, string>
+): string {
   return input.replace(/\{\{\s*(\w+)\s*\}\}/g, (match, key: string) =>
     Object.hasOwn(vars, key) ? vars[key] : match
   );
@@ -184,8 +246,8 @@ function renderShell({
 }
 
 export interface RenderCustomEmailResult {
-  subject: string;
   html: string;
+  subject: string;
   text: string;
 }
 

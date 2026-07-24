@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { emailOutbox } from "@/db/schema";
 import { db } from "@/lib/db";
+import { getPlatformSettings } from "@/lib/settings";
 import { enqueueJob } from "@/lib/worker/enqueue";
 import { JOB_NAMES } from "@/lib/worker/job-types";
 
@@ -9,20 +10,34 @@ export interface SendEmailOptions {
   subject: string;
   text?: string;
   to: string;
+  /**
+   * "ticket" = lifecycle notification about a ticket (created/replied/
+   * closed/status-changed) — mirrors an outbound webhook event, so it's
+   * skipped when ticketEmailNotificationsEnabled is off. "account" (default)
+   * = agent/admin auth or invite email, always sent.
+   */
+  category?: "account" | "ticket";
 }
 
-export async function enqueueEmail(options: SendEmailOptions) {
+export async function enqueueEmail({ category, ...payload }: SendEmailOptions) {
+  if (category === "ticket") {
+    const settings = await getPlatformSettings();
+    if (!settings.ticketEmailNotificationsEnabled) {
+      return;
+    }
+  }
+
   // Dev convenience: surface any links inside the email in the server console
   // so you can click them without opening your inbox. Never runs in production.
   if (process.env.NODE_ENV !== "production") {
-    logEmailLinks(options);
+    logEmailLinks(payload);
   }
 
   const [row] = await db
     .insert(emailOutbox)
     .values({
       idempotencyKey: randomUUID(),
-      payload: options,
+      payload,
       status: "queued",
     })
     .returning({ id: emailOutbox.id });

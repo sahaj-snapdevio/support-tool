@@ -115,9 +115,9 @@ export function buildOpenApiSpec(baseUrl: string): Record<string, unknown> {
         get: {
           tags: ["Configuration"],
           operationId: "getConfig",
-          summary: "Get categories, priorities and statuses",
+          summary: "Get categories, priorities, statuses and tags",
           description:
-            "The current valid category, priority, and status slugs — fetch this once (and cache it) to build a ticket form or interpret a `status` value, instead of hardcoding slugs an admin could rename or reorder later. Arrays are pre-sorted in display order (the same order agents see in the app).",
+            "The current valid category, priority, and status slugs, plus the shared tag pool — fetch this once (and cache it) to build a ticket form or interpret a `status` value, instead of hardcoding slugs an admin could rename or reorder later. `categories`/`priorities`/`statuses` are pre-sorted in display order (the same order agents see in the app); `tags` is alphabetical.",
           responses: {
             "200": {
               description: "Current configuration.",
@@ -151,6 +151,7 @@ export function buildOpenApiSpec(baseUrl: string): Record<string, unknown> {
                         required: false,
                       },
                     ],
+                    tags: [{ id: "ckt1a2b3c4d5e6f", name: "billing" }],
                   },
                 },
               },
@@ -256,7 +257,7 @@ export function buildOpenApiSpec(baseUrl: string): Record<string, unknown> {
           operationId: "listTicketsByEmail",
           summary: "List a customer's tickets",
           description:
-            'List a customer\'s tickets, most recent first — e.g. to show "Your Tickets" on your own site. Returns up to 50; there is no pagination yet. Matches on exact, case-sensitive equality against the email the ticket was created with — an empty `tickets` array just means no match, not an error.',
+            'List a customer\'s tickets, most recent first — e.g. to show "Your Tickets" on your own site. Paginated: 50 per page by default, up to 100 with `per_page`. Matches on exact, case-sensitive equality against the email the ticket was created with — an empty `tickets` array just means no match, not an error.',
           parameters: [
             {
               name: "email",
@@ -266,6 +267,22 @@ export function buildOpenApiSpec(baseUrl: string): Record<string, unknown> {
               schema: { type: "string", format: "email" },
               example: "jane@example.com",
             },
+            {
+              name: "page",
+              in: "query",
+              required: false,
+              description: "1-indexed page number. Defaults to 1.",
+              schema: { type: "integer", minimum: 1, default: 1 },
+              example: 1,
+            },
+            {
+              name: "per_page",
+              in: "query",
+              required: false,
+              description: "Results per page. Defaults to 50, max 100.",
+              schema: { type: "integer", minimum: 1, maximum: 100, default: 50 },
+              example: 50,
+            },
           ],
           responses: {
             "200": {
@@ -274,12 +291,22 @@ export function buildOpenApiSpec(baseUrl: string): Record<string, unknown> {
                 "application/json": {
                   schema: {
                     type: "object",
-                    required: ["tickets"],
+                    required: ["tickets", "pagination"],
                     properties: {
                       tickets: {
                         type: "array",
-                        maxItems: 50,
+                        maxItems: 100,
                         items: { $ref: "#/components/schemas/TicketSummary" },
+                      },
+                      pagination: {
+                        type: "object",
+                        required: ["page", "perPage", "total", "totalPages"],
+                        properties: {
+                          page: { type: "integer" },
+                          perPage: { type: "integer" },
+                          total: { type: "integer" },
+                          totalPages: { type: "integer" },
+                        },
                       },
                     },
                   },
@@ -294,12 +321,14 @@ export function buildOpenApiSpec(baseUrl: string): Record<string, unknown> {
                         updatedAt: "2026-07-02T09:15:00.000Z",
                       },
                     ],
+                    pagination: { page: 1, perPage: 50, total: 1, totalPages: 1 },
                   },
                 },
               },
             },
             "400": {
-              description: "The `email` query parameter is missing.",
+              description:
+                "The `email` query parameter is missing, or `page`/`per_page` is invalid.",
               content: {
                 "application/json": {
                   schema: { $ref: "#/components/schemas/Error" },
@@ -906,7 +935,13 @@ export function buildOpenApiSpec(baseUrl: string): Record<string, unknown> {
         },
         Config: {
           type: "object",
-          required: ["categories", "priorities", "statuses", "customFields"],
+          required: [
+            "categories",
+            "priorities",
+            "statuses",
+            "customFields",
+            "tags",
+          ],
           properties: {
             categories: {
               type: "array",
@@ -991,6 +1026,19 @@ export function buildOpenApiSpec(baseUrl: string): Record<string, unknown> {
                     description: "Only present when `type` is `select`.",
                   },
                   required: { type: "boolean" },
+                },
+              },
+            },
+            tags: {
+              type: "array",
+              description:
+                "The shared tag pool agents pick from — alphabetical, not display-ordered (tags have no admin-defined order).",
+              items: {
+                type: "object",
+                required: ["id", "name"],
+                properties: {
+                  id: { type: "string", examples: ["ckt1a2b3c4d5e6f"] },
+                  name: { type: "string", examples: ["billing"] },
                 },
               },
             },

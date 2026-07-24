@@ -52,10 +52,11 @@ status (`400` validation, `401` auth, `404` not found, `429` rate limited,
 
 ## `GET /api/v1/config`
 
-The current valid category, priority, and status slugs — fetch this once
-(cache it) to build a ticket form or interpret a `status` value, instead of
-hardcoding slugs an admin could rename or reorder later. Arrays are
-pre-sorted in display order (the same order agents see in the app).
+The current valid category, priority, and status slugs, plus the shared tag
+pool — fetch this once (cache it) to build a ticket form or interpret a
+`status` value, instead of hardcoding slugs an admin could rename or reorder
+later. `categories`/`priorities`/`statuses` are pre-sorted in display order
+(the same order agents see in the app); `tags` is alphabetical.
 
 ```bash
 curl https://support.example.com/api/v1/config \
@@ -93,13 +94,18 @@ curl https://support.example.com/api/v1/config \
       "options": ["Free", "Pro", "Enterprise"],
       "required": true
     }
-  ]
+  ],
+  "tags": [{ "id": "ckt1a2b3c4d5e6f", "name": "billing" }]
 }
 ```
 
 `customFields` lists whatever an admin has configured at `/admin/custom-fields`
 (empty array if none). `type` is one of `text`, `number`, `date`, `checkbox`,
 `select`; `options` is only present for `select`.
+
+`tags` is the shared tag pool agents pick from when tagging a ticket
+(empty array if none exist yet) — alphabetical, not display-ordered, since
+tags have no admin-defined order.
 
 ## `POST /api/v1/tickets`
 
@@ -402,10 +408,16 @@ match the ticket's customer email. `404` if the ticket doesn't exist.
 ## `GET /api/v1/tickets?email=`
 
 List a customer's tickets, most recent first — e.g. to show "Your Tickets"
-on your own site. Returns up to 50; there's no pagination yet.
+on your own site.
+
+| Query param | Required | Notes |
+|---|---|---|
+| `email` | Yes | Customer email the tickets were created with |
+| `page` | No | 1-indexed page number, default `1` |
+| `per_page` | No | Results per page, default `50`, max `100` |
 
 ```bash
-curl "https://support.example.com/api/v1/tickets?email=jane@example.com" \
+curl "https://support.example.com/api/v1/tickets?email=jane@example.com&page=1&per_page=50" \
   -H "Authorization: Bearer stk_live_xxxxxxxxxxxxxxxxxxxxxxxx"
 ```
 
@@ -422,13 +434,23 @@ curl "https://support.example.com/api/v1/tickets?email=jane@example.com" \
       "createdAt": "2026-07-01T10:00:00.000Z",
       "updatedAt": "2026-07-02T09:15:00.000Z"
     }
-  ]
+  ],
+  "pagination": {
+    "page": 1,
+    "perPage": 50,
+    "total": 1,
+    "totalPages": 1
+  }
 }
 ```
 
-`400` if `email` is missing. Matches on an exact, case-sensitive equality
-against the email the ticket was created with (same as everywhere else in
-the app) — an empty `tickets` array just means no match, not an error.
+`total` is the customer's total ticket count and `totalPages` is
+`ceil(total / perPage)` — page through with `page=2`, `page=3`, etc. until
+`page >= totalPages`. `400` if `email` is missing, `page` isn't a positive
+integer, or `per_page` isn't an integer between 1 and 100. Matches on an
+exact, case-sensitive equality against the email the ticket was created
+with (same as everywhere else in the app) — an empty `tickets` array just
+means no match, not an error.
 
 ---
 

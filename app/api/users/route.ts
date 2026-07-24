@@ -1,9 +1,11 @@
 import { createId } from "@paralleldrive/cuid2";
+import { APIError } from "better-auth/api";
 import { count, eq, ilike, or } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { ADMIN_ROLE, AGENT_ROLE } from "@/config/platform";
 import { user } from "@/db/schema";
+import { auth } from "@/lib/auth";
 import { requireAdminFromRequest } from "@/lib/authz";
 import { db } from "@/lib/db";
 import { enqueueEmail } from "@/lib/email";
@@ -71,12 +73,13 @@ export async function POST(request: NextRequest) {
     return e as Response;
   }
 
-  let body: { name?: string; email?: string; role?: string };
+  let body: { name?: string; email?: string; role?: string; password?: string };
   try {
     body = (await request.json()) as {
       name?: string;
       email?: string;
       role?: string;
+      password?: string;
     };
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
@@ -85,6 +88,7 @@ export async function POST(request: NextRequest) {
   const name = body.name?.trim() ?? "";
   const email = body.email?.trim().toLowerCase() ?? "";
   const role = body.role?.trim() ?? AGENT_ROLE;
+  const password = body.password;
 
   if (!name || name.length < 2 || name.length > 100) {
     return NextResponse.json(
@@ -100,6 +104,26 @@ export async function POST(request: NextRequest) {
   }
   if (role !== AGENT_ROLE && role !== ADMIN_ROLE) {
     return NextResponse.json({ error: "Invalid role." }, { status: 400 });
+  }
+
+  const settings = await getPlatformSettings();
+
+  // A password can be set directly instead of emailing an invite — the
+  // primary use case is deployments with no SMTP configured, where an
+  // emailed invite would never arrive and the agent could never sign in.
+  if (password !== undefined) {
+    if (!settings.passwordLoginEnabled) {
+      return NextResponse.json(
+        { error: "Password sign-in is disabled." },
+        { status: 403 }
+      );
+    }
+    if (password.length < 8 || password.length > 128) {
+      return NextResponse.json(
+        { error: "Password must be 8–128 characters." },
+        { status: 400 }
+      );
+    }
   }
 
   // Check for duplicate email
@@ -129,6 +153,30 @@ export async function POST(request: NextRequest) {
     updatedAt: now,
   });
 
+  if (password !== undefined) {
+    try {
+      await auth.api.setUserPassword({
+        headers: request.headers,
+        body: { userId: newId, newPassword: password },
+      });
+    } catch (e) {
+      // Roll back the user row so the failed attempt doesn't leave behind
+      // a password-less pending user the admin didn't ask for.
+      await db.delete(user).where(eq(user.id, newId));
+      if (e instanceof APIError) {
+        return NextResponse.json(
+          { error: e.message },
+          { status: e.statusCode }
+        );
+      }
+      return NextResponse.json(
+        { error: "Failed to set password." },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({ id: newId }, { status: 201 });
+  }
+
   // Send invitation email (fire-and-forget). If password login is enabled,
   // the primary CTA sets up a password (the invitee has no credential
   // account yet) via the same verification-row mechanism Better Auth's own
@@ -137,7 +185,6 @@ export async function POST(request: NextRequest) {
   // since the user row itself is enough for those methods to find them.
   const signInUrl = `${env.NEXT_PUBLIC_APP_URL}/login`;
   (async () => {
-    const settings = await getPlatformSettings();
     const appName = resolveBrandName(settings.brandName);
     const logoUrl = resolveLogoUrl(settings.logoKey, true);
     const passwordSetupUrl = settings.passwordLoginEnabled

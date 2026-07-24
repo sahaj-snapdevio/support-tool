@@ -32,6 +32,15 @@ Access requires a session with `role: admin`.
 
 ## 1. User Management (`/admin/users`)
 
+### Add User
+
+Admins create new agent/admin accounts via the "Add User" button, by one of two methods:
+
+- **Set Password** (default when password sign-in is enabled) — admin sets the new user's password directly, right in the dialog (min 8 characters, confirm field). No email is sent; the admin shares the password with the user themselves, same as the Reset Password flow below. This is the method to use when SMTP isn't configured — without it, an emailed invite would never arrive and the user could never sign in.
+- **Email Invite** — creates the account and emails them a sign-in link (password-setup link included if password sign-in is enabled). Requires SMTP to be configured; only offered as a choice when password sign-in is enabled, otherwise it's the only option (magic link / Google-only shops still rely on the invite email to tell the user their account exists).
+
+Either way, the new user still shows up in **Pending Invitations** below until they actually sign in for the first time — setting a password doesn't create a session.
+
 ### Pending Invitations
 
 Shown above the user list, only when at least one invite is outstanding. A user counts as pending until they accept the invite by signing in for the first time (password, magic link, or Google — any method creates a session), determined by whether the user has ever had a `session` row, not by a separate status field. Not paginated or searched.

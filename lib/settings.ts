@@ -21,6 +21,7 @@ export async function getPlatformSettings() {
       passwordLoginEnabled: true,
       magicLinkEnabled: false,
       googleLoginEnabled: false,
+      ticketEmailNotificationsEnabled: true,
       brandName: null as string | null,
       logoKey: null as string | null,
     }

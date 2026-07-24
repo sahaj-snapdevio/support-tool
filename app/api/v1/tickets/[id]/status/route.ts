@@ -182,6 +182,7 @@ export async function PATCH(
           subject: emailSubject,
           html,
           text,
+          category: "ticket",
         })
       )
       .catch((err) => console.error("[ticket.closed email]", err));

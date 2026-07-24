@@ -23,6 +23,7 @@ interface SettingsBody {
   magicLinkEnabled?: boolean;
   passwordLoginEnabled?: boolean;
   theme?: string;
+  ticketEmailNotificationsEnabled?: boolean;
 }
 
 // GET — agent/admin can read (middleware already enforced access)
@@ -39,6 +40,7 @@ export async function GET(_request: NextRequest) {
     passwordLoginEnabled: row?.passwordLoginEnabled ?? true,
     magicLinkEnabled: row?.magicLinkEnabled ?? false,
     googleLoginEnabled: row?.googleLoginEnabled ?? false,
+    ticketEmailNotificationsEnabled: row?.ticketEmailNotificationsEnabled ?? true,
     brandName: row?.brandName ?? null,
     logoKey: row?.logoKey ?? null,
   });
@@ -76,6 +78,10 @@ export async function PATCH(request: NextRequest) {
     body.magicLinkEnabled ?? existing?.magicLinkEnabled ?? false;
   const googleLoginEnabled =
     body.googleLoginEnabled ?? existing?.googleLoginEnabled ?? false;
+  const ticketEmailNotificationsEnabled =
+    body.ticketEmailNotificationsEnabled ??
+    existing?.ticketEmailNotificationsEnabled ??
+    true;
   const brandName =
     body.brandName === undefined
       ? (existing?.brandName ?? null)
@@ -117,6 +123,7 @@ export async function PATCH(request: NextRequest) {
       passwordLoginEnabled,
       magicLinkEnabled,
       googleLoginEnabled,
+      ticketEmailNotificationsEnabled,
       brandName,
       updatedAt: now,
     })
@@ -128,6 +135,7 @@ export async function PATCH(request: NextRequest) {
         passwordLoginEnabled,
         magicLinkEnabled,
         googleLoginEnabled,
+        ticketEmailNotificationsEnabled,
         brandName,
         updatedAt: now,
       },
@@ -146,6 +154,7 @@ export async function PATCH(request: NextRequest) {
       passwordLoginEnabled,
       magicLinkEnabled,
       googleLoginEnabled,
+      ticketEmailNotificationsEnabled,
       brandName,
     },
   });
@@ -156,6 +165,7 @@ export async function PATCH(request: NextRequest) {
     passwordLoginEnabled,
     magicLinkEnabled,
     googleLoginEnabled,
+    ticketEmailNotificationsEnabled,
     brandName,
   });
 }

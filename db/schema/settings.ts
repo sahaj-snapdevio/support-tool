@@ -14,5 +14,14 @@ export const platformSettings = pgTable("platform_settings", {
   passwordLoginEnabled: boolean("password_login_enabled").notNull().default(true),
   magicLinkEnabled: boolean("magic_link_enabled").notNull().default(false),
   googleLoginEnabled: boolean("google_login_enabled").notNull().default(false),
+  // Ticket lifecycle emails (created/replied/closed/status-changed) sent by
+  // Support Tool's own SMTP. Teams that consume the same events via outbound
+  // webhooks and send their own emails from their backend can turn this off
+  // to avoid duplicate notifications to the customer. Does not affect
+  // agent/admin auth emails (magic link, password reset, invites) — those
+  // always send regardless of this flag.
+  ticketEmailNotificationsEnabled: boolean("ticket_email_notifications_enabled")
+    .notNull()
+    .default(true),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

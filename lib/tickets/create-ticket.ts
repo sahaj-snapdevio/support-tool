@@ -296,6 +296,7 @@ export async function createTicketFromSubmission(
           subject: emailSubject,
           html,
           text,
+          category: "ticket",
         })
       )
       .catch((err) => console.error("[ticket.created email]", err));

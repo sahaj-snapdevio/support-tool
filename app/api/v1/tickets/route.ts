@@ -1,5 +1,5 @@
 import { createId } from "@paralleldrive/cuid2";
-import { desc, eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { customers, tickets } from "@/db/schema";
@@ -17,12 +17,14 @@ import {
   validateTicketSubmission,
 } from "@/lib/tickets/create-ticket";
 
-const LIST_LIMIT = 50;
+const DEFAULT_PER_PAGE = 50;
+const MAX_PER_PAGE = 100;
 
-// GET /api/v1/tickets?email=customer@example.com — public API, authenticated
-// with an API key. Lists that customer's tickets, most recent first. Any
-// active key can list any customer's tickets — same single-tenant reasoning
-// as GET /api/v1/tickets/:id (no per-key scoping on this deployment).
+// GET /api/v1/tickets?email=customer@example.com&page=1&per_page=50 — public
+// API, authenticated with an API key. Lists that customer's tickets, most
+// recent first. Any active key can list any customer's tickets — same
+// single-tenant reasoning as GET /api/v1/tickets/:id (no per-key scoping on
+// this deployment).
 export async function GET(request: NextRequest) {
   try {
     await requireApiKey(request);
@@ -38,29 +40,68 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const rawPage = request.nextUrl.searchParams.get("page");
+  const page = rawPage ? Number.parseInt(rawPage, 10) : 1;
+  if (!Number.isInteger(page) || page < 1) {
+    return NextResponse.json(
+      { error: "Query parameter 'page' must be a positive integer." },
+      { status: 400 }
+    );
+  }
+
+  const rawPerPage = request.nextUrl.searchParams.get("per_page");
+  const perPage = rawPerPage ? Number.parseInt(rawPerPage, 10) : DEFAULT_PER_PAGE;
+  if (!Number.isInteger(perPage) || perPage < 1 || perPage > MAX_PER_PAGE) {
+    return NextResponse.json(
+      {
+        error: `Query parameter 'per_page' must be an integer between 1 and ${MAX_PER_PAGE}.`,
+      },
+      { status: 400 }
+    );
+  }
+
   const [customer] = await db
     .select({ id: customers.id })
     .from(customers)
     .where(eq(customers.email, email.toLowerCase()))
     .limit(1);
 
-  const rows = customer
-    ? await db
-        .select({
-          id: tickets.id,
-          ticketNumber: tickets.ticketNumber,
-          subject: tickets.subject,
-          status: tickets.status,
-          createdAt: tickets.createdAt,
-          updatedAt: tickets.updatedAt,
-        })
-        .from(tickets)
-        .where(eq(tickets.customerId, customer.id))
-        .orderBy(desc(tickets.createdAt))
-        .limit(LIST_LIMIT)
-    : [];
+  if (!customer) {
+    return NextResponse.json({
+      tickets: [],
+      pagination: { page, perPage, total: 0, totalPages: 0 },
+    });
+  }
 
-  return NextResponse.json({ tickets: rows });
+  const where = eq(tickets.customerId, customer.id);
+
+  const [rows, [{ total }]] = await Promise.all([
+    db
+      .select({
+        id: tickets.id,
+        ticketNumber: tickets.ticketNumber,
+        subject: tickets.subject,
+        status: tickets.status,
+        createdAt: tickets.createdAt,
+        updatedAt: tickets.updatedAt,
+      })
+      .from(tickets)
+      .where(where)
+      .orderBy(desc(tickets.createdAt))
+      .limit(perPage)
+      .offset((page - 1) * perPage),
+    db.select({ total: count() }).from(tickets).where(where),
+  ]);
+
+  return NextResponse.json({
+    tickets: rows,
+    pagination: {
+      page,
+      perPage,
+      total,
+      totalPages: Math.ceil(total / perPage),
+    },
+  });
 }
 
 // POST /api/v1/tickets — public API, authenticated with an API key

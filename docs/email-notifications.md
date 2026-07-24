@@ -178,6 +178,14 @@ If `SMTP_HOST` is not set, the worker logs emails to console instead of sending 
 
 ---
 
+## Disabling Support Tool's Ticket Emails
+
+`/admin/email-templates` has a **"Support Tool sends email"** toggle (`platform_settings.ticket_email_notifications_enabled`, default on). It gates only the four customer-facing ticket lifecycle emails — ticket created, agent replied, ticket closed, status changed (`enqueueEmail({ ..., category: "ticket" })` in the routes/lib listed above) — checked once, up front, in `enqueueEmail()` (`lib/email/index.ts`) so a disabled email never reaches the outbox/queue.
+
+This exists for teams that consume the same events via [outbound webhooks](webhooks.md) and send the equivalent email themselves from their own backend — turning this off avoids the customer getting duplicate notifications. It does **not** affect agent/admin auth emails (magic link, password reset) or user invites — those always send regardless of this flag, since they aren't mirrored by a webhook event and have no external replacement. The my-tickets-list "send me my tickets" email is also unaffected — it's a customer-initiated self-service request, not an event notification.
+
+---
+
 ## Business Rules
 
 1. Only public replies trigger a customer notification — internal notes do not.
@@ -187,6 +195,7 @@ If `SMTP_HOST` is not set, the worker logs emails to console instead of sending 
 5. The brand name/logo shown in every email come from the admin-configurable settings in `/admin/appearance` (`lib/settings.ts`'s `getEmailBranding()`), falling back to the `PRODUCT_NAME` constant in `config/platform.ts` when unset — not a hardcoded value.
 6. Admin-customized template subjects/bodies (see above) take priority over the hardcoded design; a template with no saved row/body uses the hardcoded design unchanged.
 7. A ticket's customer-facing link uses its originating API key's custom portal URL when one is configured, otherwise Support Tool's own `/ticket/:id` portal (see [Per-API-key portal links](#per-api-key-portal-links)).
+8. Ticket lifecycle emails can be turned off entirely in favor of webhook-driven emails from the integrator's own backend (see [Disabling Support Tool's Ticket Emails](#disabling-support-tools-ticket-emails)); auth and invite emails always send.
 
 ---
 

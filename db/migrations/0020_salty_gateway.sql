@@ -1,0 +1,1 @@
+ALTER TABLE "platform_settings" ADD COLUMN "ticket_email_notifications_enabled" boolean DEFAULT true NOT NULL;

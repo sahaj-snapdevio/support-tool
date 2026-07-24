@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireApiKey } from "@/lib/api-auth";
 import { getCustomFields } from "@/lib/custom-fields";
+import { searchTags } from "@/lib/tags";
 import {
   getTicketCategories,
   getTicketPriorities,
@@ -13,7 +14,8 @@ import {
 // ticket form (or interpret a status value) without asking an admin what's
 // configured — and without hardcoding slugs that break silently if an
 // admin renames or reorders them later. Arrays are pre-sorted in display
-// order (same order agents see in the app).
+// order (same order agents see in the app). `tags` is the shared tag pool
+// (alphabetical, not display-ordered — tags have no admin-defined order).
 export async function GET(request: NextRequest) {
   try {
     await requireApiKey(request);
@@ -21,11 +23,12 @@ export async function GET(request: NextRequest) {
     return e as Response;
   }
 
-  const [categories, priorities, statuses, customFields] = await Promise.all([
+  const [categories, priorities, statuses, customFields, tags] = await Promise.all([
     getTicketCategories(),
     getTicketPriorities(),
     getTicketStatuses(),
     getCustomFields(),
+    searchTags("", Number.MAX_SAFE_INTEGER),
   ]);
 
   return NextResponse.json({
@@ -54,5 +57,6 @@ export async function GET(request: NextRequest) {
       options: f.options ?? undefined,
       required: f.required,
     })),
+    tags: tags.map((t) => ({ id: t.id, name: t.name })),
   });
 }

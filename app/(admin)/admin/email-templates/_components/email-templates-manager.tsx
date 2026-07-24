@@ -1,9 +1,9 @@
 "use client";
 
 import {
+  ArrowCounterClockwiseIcon,
   CaretDownIcon,
   EyeIcon,
-  ArrowCounterClockwiseIcon,
 } from "@phosphor-icons/react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -21,25 +21,33 @@ import type { EmailTemplateType } from "@/lib/email-templates";
 import { cn } from "@/lib/utils";
 
 interface MergeTag {
-  tag: string;
   description: string;
+  tag: string;
 }
 
-interface TemplateItem {
-  type: EmailTemplateType;
-  label: string;
-  description: string;
+export interface TemplateItem {
+  body: string | null;
+  /** Tiptap JSON for the built-in body design, pre-filled when there's no saved override. */
+  defaultBody: string;
   defaultSubject: string;
+  description: string;
+  /** True for emails Support Tool stops sending when the sending toggle is off — their editor locks too, since editing them would have no effect. */
+  gatedByTicketToggle: boolean;
+  label: string;
   mergeTags: MergeTag[];
   subject: string | null;
-  body: string | null;
+  type: EmailTemplateType;
 }
 
 interface Props {
   initialTemplates: TemplateItem[];
+  ticketEmailNotificationsEnabled: boolean;
 }
 
-export function EmailTemplatesManager({ initialTemplates }: Props) {
+export function EmailTemplatesManager({
+  initialTemplates,
+  ticketEmailNotificationsEnabled,
+}: Props) {
   const [templates, setTemplates] = useState(initialTemplates);
   const [openType, setOpenType] = useState<EmailTemplateType | null>(null);
 
@@ -50,6 +58,7 @@ export function EmailTemplatesManager({ initialTemplates }: Props) {
           isOpen={openType === item.type}
           item={item}
           key={item.type}
+          locked={item.gatedByTicketToggle && !ticketEmailNotificationsEnabled}
           onToggle={() =>
             setOpenType((cur) => (cur === item.type ? null : item.type))
           }
@@ -67,17 +76,22 @@ export function EmailTemplatesManager({ initialTemplates }: Props) {
 function TemplateCard({
   item,
   isOpen,
+  locked,
   onToggle,
   onUpdated,
 }: {
   item: TemplateItem;
   isOpen: boolean;
+  locked: boolean;
   onToggle: () => void;
   onUpdated: (item: TemplateItem) => void;
 }) {
   const isCustomized = item.body !== null;
-  const [subject, setSubject] = useState(item.subject ?? item.defaultSubject);
-  const [body, setBody] = useState(item.body ?? "");
+  const initialSubject = item.subject ?? item.defaultSubject;
+  const initialBody = item.body ?? item.defaultBody;
+  const [subject, setSubject] = useState(initialSubject);
+  const [body, setBody] = useState(initialBody);
+  const isDirty = subject !== initialSubject || body !== initialBody;
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -101,7 +115,11 @@ function TemplateCard({
         toast.error(data.error ?? "Failed to save.");
         return;
       }
-      onUpdated({ ...item, subject: data.subject ?? null, body: data.body ?? null });
+      onUpdated({
+        ...item,
+        subject: data.subject ?? null,
+        body: data.body ?? null,
+      });
       toast.success(`"${item.label}" template saved.`);
     } catch {
       toast.error("Network error.");
@@ -123,7 +141,7 @@ function TemplateCard({
         return;
       }
       setSubject(item.defaultSubject);
-      setBody("");
+      setBody(item.defaultBody);
       onUpdated({ ...item, subject: null, body: null });
       toast.success(`"${item.label}" reset to default.`);
     } catch {
@@ -141,11 +159,14 @@ function TemplateCard({
     setPreviewOpen(true);
     setPreviewLoading(true);
     try {
-      const res = await fetch(`/api/admin/email-templates/${item.type}/preview`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject, body }),
-      });
+      const res = await fetch(
+        `/api/admin/email-templates/${item.type}/preview`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subject, body }),
+        }
+      );
       const data = (await res.json()) as { error?: string; html?: string };
       if (!res.ok) {
         toast.error(data.error ?? "Failed to render preview.");
@@ -170,14 +191,25 @@ function TemplateCard({
       >
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-foreground">{item.label}</h3>
+            <h3 className="text-sm font-semibold text-foreground">
+              {item.label}
+            </h3>
             {isCustomized && (
               <span className="inline-flex items-center rounded border border-border bg-accent px-1.5 py-0.5 text-2xs font-medium text-foreground">
                 Customized
               </span>
             )}
+            {locked && (
+              <span className="inline-flex items-center rounded border border-border bg-accent px-1.5 py-0.5 text-2xs font-medium text-muted-foreground">
+                Sending off
+              </span>
+            )}
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {locked
+              ? "Support Tool sends email is off — this template can't be edited until it's turned back on."
+              : item.description}
+          </p>
         </div>
         <CaretDownIcon
           className={cn(
@@ -197,6 +229,7 @@ function TemplateCard({
                 </Label>
                 <Input
                   className="rounded-md font-mono text-xs"
+                  disabled={locked}
                   onChange={(e) => setSubject(e.target.value)}
                   placeholder={item.defaultSubject}
                   value={subject}
@@ -208,6 +241,7 @@ function TemplateCard({
                   Body
                 </Label>
                 <RichTextEditor
+                  disabled={locked}
                   onChange={setBody}
                   placeholder="Write this email's body… use merge tags like {{customerName}}."
                   value={body}
@@ -217,7 +251,7 @@ function TemplateCard({
               <div className="flex items-center gap-2">
                 <Button
                   className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-md"
-                  disabled={saving || !body.trim()}
+                  disabled={locked || saving || !body.trim() || !isDirty}
                   onClick={handleSave}
                   size="sm"
                 >
@@ -225,6 +259,7 @@ function TemplateCard({
                 </Button>
                 <Button
                   className="border-border text-foreground hover:bg-accent rounded-md gap-1.5"
+                  disabled={locked}
                   onClick={handlePreview}
                   size="sm"
                   variant="outline"
@@ -235,7 +270,7 @@ function TemplateCard({
                 {isCustomized && (
                   <Button
                     className="border-border text-foreground hover:bg-accent rounded-md gap-1.5 ml-auto"
-                    disabled={resetting}
+                    disabled={locked || resetting}
                     onClick={handleReset}
                     size="sm"
                     variant="outline"

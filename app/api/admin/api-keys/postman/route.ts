@@ -240,7 +240,11 @@ export async function GET(request: NextRequest) {
             raw: "{{base_url}}/api/v1/tickets?email={{customer_email}}",
             host: ["{{base_url}}"],
             path: ["api", "v1", "tickets"],
-            query: [{ key: "email", value: "{{customer_email}}" }],
+            query: [
+              { key: "email", value: "{{customer_email}}" },
+              { key: "page", value: "1", disabled: true },
+              { key: "per_page", value: "50", disabled: true },
+            ],
           },
         },
       },

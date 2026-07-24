@@ -30,6 +30,7 @@ const PAGE_SIZE = 25;
 export default async function AdminUsersPage({ searchParams }: Props) {
   const session = await requireAdmin();
   const params = await searchParams;
+  const settings = await getPlatformSettings();
 
   // Invited users who have never signed in yet — every sign-in method
   // (password, magic link, Google) creates a session row, so "no session
@@ -58,7 +59,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
       {/* Header actions */}
       <div className="flex items-center justify-end gap-2 mb-6 flex-wrap">
         <UserSearch />
-        <InviteUserDialog />
+        <InviteUserDialog passwordLoginEnabled={settings.passwordLoginEnabled} />
       </div>
 
       {pendingUsers.length > 0 && <PendingInvitations users={pendingUsers} />}

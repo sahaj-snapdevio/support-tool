@@ -8,6 +8,8 @@ Delivery is async and durable: an event is queued (`webhook_deliveries` table), 
 
 Manage endpoints at `/admin/webhooks` (admin role required). For an interactive, per-event reference (rendered by Scalar from `lib/webhooks-openapi-spec.ts`, the same pattern used for the [public API docs](./api.md)), see **View Docs** on that page, or go straight to `/admin/webhooks/docs`.
 
+If your backend sends its own customer emails off these events, turn off Support Tool's built-in ticket notification emails at `/admin/email-templates` ("Support Tool sends email") to avoid double-notifying customers — see [Disabling Support Tool's Ticket Emails](./email-notifications.md#disabling-support-tools-ticket-emails).
+
 ---
 
 ## Setting up a webhook
