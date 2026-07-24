@@ -41,6 +41,32 @@ export async function getOrCreateTagId(rawName: string): Promise<string> {
   }
 }
 
+/**
+ * Find-or-create each tag name and link it to the ticket. Idempotent — a tag
+ * already linked to the ticket is skipped (the unique (ticketId, tagId) index
+ * makes the insert a no-op via onConflictDoNothing). Names are normalized and
+ * deduped first. Used by the public create API so an integrating backend can
+ * tag a ticket at creation time, exactly like an agent adding tags by hand.
+ */
+export async function linkTagsToTicket(
+  ticketId: string,
+  rawNames: string[]
+): Promise<void> {
+  const names = Array.from(
+    new Set(rawNames.map(normalizeTagName).filter((n) => n.length > 0))
+  );
+  if (names.length === 0) {
+    return;
+  }
+  for (const name of names) {
+    const tagId = await getOrCreateTagId(name);
+    await db
+      .insert(ticketTags)
+      .values({ id: createId(), ticketId, tagId })
+      .onConflictDoNothing();
+  }
+}
+
 export async function getTicketTags(
   ticketId: string
 ): Promise<Array<{ id: string; name: string }>> {

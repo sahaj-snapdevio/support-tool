@@ -16,9 +16,12 @@ import {
   createTicketFromSubmission,
   validateTicketSubmission,
 } from "@/lib/tickets/create-ticket";
+import { linkTagsToTicket } from "@/lib/tags";
 
 const DEFAULT_PER_PAGE = 50;
 const MAX_PER_PAGE = 100;
+const MAX_API_TAGS = 10;
+const MAX_TAG_LENGTH = 50;
 
 // GET /api/v1/tickets?email=customer@example.com&page=1&per_page=50 — public
 // API, authenticated with an API key. Lists that customer's tickets, most
@@ -138,6 +141,7 @@ export async function POST(request: NextRequest) {
     priority?: string;
     attachments?: unknown;
     customFields?: Record<string, unknown>;
+    tags?: unknown;
   };
   try {
     body = await request.json();
@@ -218,6 +222,25 @@ export async function POST(request: NextRequest) {
       { error: result.error },
       { status: result.httpStatus }
     );
+  }
+
+  // Optional tags — an integrating backend can classify a ticket at creation
+  // (e.g. "dtm", "website contact form"). Names are normalized/deduped and
+  // find-or-created in the shared pool, exactly like agent-added tags, so they
+  // render in the ticket's TAGS panel. Best effort: a tagging failure is logged
+  // but never fails the already-created ticket. Omitting tags changes nothing.
+  const appliedTags = Array.isArray(body.tags)
+    ? body.tags
+        .map((t) => String(t))
+        .filter((t) => t.trim().length > 0 && t.length <= MAX_TAG_LENGTH)
+        .slice(0, MAX_API_TAGS)
+    : [];
+  if (appliedTags.length > 0) {
+    try {
+      await linkTagsToTicket(result.id, appliedTags);
+    } catch (err) {
+      console.error("[POST /api/v1/tickets] tag linking", err);
+    }
   }
 
   return NextResponse.json(
